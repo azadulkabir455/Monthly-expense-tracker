@@ -94,7 +94,7 @@ export function EditDayExpensesModal({
   };
 
   const [itemsByType, setItemsByType] = useState<Map<string, ExpenseItem[]>>(buildInitialItems);
-  const [activeTypeId, setActiveTypeId] = useState<string>(typeOptions[0]?.value ?? "");
+  const [activeTypeId, setActiveTypeId] = useState<string>(String(typeOptions[0]?.value ?? ""));
   const [addName, setAddName] = useState("");
   const [addAmount, setAddAmount] = useState("");
   const [editingIdx, setEditingIdx] = useState<{ typeId: string; idx: number } | null>(null);
@@ -105,7 +105,7 @@ export function EditDayExpensesModal({
   useEffect(() => {
     if (open) {
       setItemsByType(buildInitialItems());
-      setActiveTypeId(typeOptions[0]?.value ?? "");
+      setActiveTypeId(String(typeOptions[0]?.value ?? ""));
       setAddName("");
       setAddAmount("");
       setEditingIdx(null);
