@@ -1,26 +1,265 @@
 @import "tailwindcss";
 
+/* Dark mode via .dark class on html */
+@custom-variant dark (&&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #1e293b;
+  --muted-foreground: #64748b;
+  --card: #ffffff;
+  --border-light: #dddddd;
+}
+
+.dark {
+  --background: #0f0a1a;
+  --foreground: #f5f3ff;
+  --muted-foreground: #a5b4fc;
+  --card: rgba(30, 20, 50, 0.6);
+}
+
+/* Color theme variables - overridden by data-color-theme */
+:root,
+[data-color-theme="violet"] {
+  --accent-500: 139 92 246;
+  --accent-600: 124 58 237;
+  --accent-fuchsia: 217 70 239;
+}
+[data-color-theme="blue"] {
+  --accent-500: 59 130 246;
+  --accent-600: 37 99 235;
+  --accent-fuchsia: 6 182 212;
+}
+[data-color-theme="teal"] {
+  --accent-500: 20 184 166;
+  --accent-600: 13 148 136;
+  --accent-fuchsia: 34 211 238;
+}
+[data-color-theme="emerald"] {
+  --accent-500: 16 185 129;
+  --accent-600: 5 150 105;
+  --accent-fuchsia: 52 211 153;
+}
+[data-color-theme="amber"] {
+  --accent-500: 245 158 11;
+  --accent-600: 217 119 6;
+  --accent-fuchsia: 251 191 36;
+}
+[data-color-theme="rose"] {
+  --accent-500: 244 63 94;
+  --accent-600: 225 29 72;
+  --accent-fuchsia: 251 113 133;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-card: var(--card);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --color-accent-500: rgb(var(--accent-500));
+  --color-accent-600: rgb(var(--accent-600));
+  --color-border-light: var(--border-light);
+  /* Override violet/fuchsia to use accent theme */
+  --color-violet-500: rgb(var(--accent-500));
+  --color-violet-600: rgb(var(--accent-600));
+  --color-violet-400: rgb(var(--accent-500) / 0.9);
+  --color-fuchsia-500: rgb(var(--accent-fuchsia));
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+html {
+  overflow-x: hidden;
+}
+
+/* App loader bounce dots */
+@keyframes loader-bounce {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
   }
 }
 
+.loader-dot {
+  animation: loader-bounce 0.6s ease-in-out infinite;
+}
+
+/* Custom scrollbar - uses accent color */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--accent-500) / 0.4) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgb(var(--accent-500) / 0.35);
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--accent-500) / 0.55);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+html.dark * {
+  scrollbar-color: rgb(var(--accent-500) / 0.35) transparent;
+}
+
+html.dark *::-webkit-scrollbar-thumb {
+  background: rgb(var(--accent-500) / 0.3);
+}
+
+html.dark *::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--accent-500) / 0.5);
+}
+
 body {
-  background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  background: #f8fafc;
+  background-attachment: fixed;
+  overflow-x: hidden;
+}
+
+/* Dark mode - gorgeous indigo/violet gradient */
+html.dark body {
+  background: linear-gradient(
+    160deg,
+    #0f0a1a 0%,
+    #1a1030 25%,
+    #15102a 50%,
+    #1e0f35 75%,
+    #0d0818 100%
+  );
+}
+
+/* Auth pages - clean light mode */
+.auth-bg {
+  background: #f8fafc;
+  background-attachment: fixed;
+}
+
+html.dark .auth-bg {
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, rgb(var(--accent-500)) 10%, #0f0a1a) 0%,
+    color-mix(in srgb, rgb(var(--accent-500)) 15%, #1e1535) 35%,
+    #16102a 65%,
+    #0d0818 100%
+  );
+  background-attachment: fixed;
+}
+
+/* Dashboard light - soft off-white, no black */
+.dashboard-bg {
+  background: linear-gradient(180deg, #fafbff 0%, #f8fafc 50%, #f1f5f9 100%);
+  background-attachment: fixed;
+  transition: background 0.4s ease;
+}
+
+html.dark .dashboard-bg {
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, rgb(var(--accent-500)) 12%, #0d0818) 0%,
+    color-mix(in srgb, rgb(var(--accent-500)) 15%, #120b21) 20%,
+    color-mix(in srgb, rgb(var(--accent-500)) 18%, #1a0f2e) 40%,
+    #15102a 60%,
+    #0f0a1a 100%
+  );
+  background-attachment: fixed;
+}
+
+/* Unified box shadows - consistent across site */
+.shadow-card {
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.08),
+    0 2px 6px rgba(0, 0, 0, 0.04);
+}
+.shadow-card-lg {
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.06),
+    0 4px 12px rgba(0, 0, 0, 0.06),
+    0 8px 24px rgba(0, 0, 0, 0.04);
+}
+.shadow-elevated {
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.05),
+    0 10px 20px rgba(0, 0, 0, 0.06),
+    0 16px 40px rgba(0, 0, 0, 0.05);
+}
+.shadow-float {
+  box-shadow:
+    0 8px 16px rgba(0, 0, 0, 0.06),
+    0 16px 32px rgba(0, 0, 0, 0.06),
+    0 24px 48px rgba(0, 0, 0, 0.05);
+}
+
+/* Dark mode - matching style with accent glow */
+html.dark .shadow-card {
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.2),
+    0 2px 6px rgba(0, 0, 0, 0.15),
+    0 0 20px -4px rgb(var(--accent-500) / 0.06);
+}
+html.dark .shadow-card-lg {
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.2),
+    0 4px 12px rgba(0, 0, 0, 0.18),
+    0 8px 24px rgba(0, 0, 0, 0.12),
+    0 0 24px -6px rgb(var(--accent-500) / 0.08);
+}
+html.dark .shadow-elevated {
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.22),
+    0 10px 20px rgba(0, 0, 0, 0.2),
+    0 16px 40px rgba(0, 0, 0, 0.15),
+    0 0 32px -8px rgb(var(--accent-500) / 0.1);
+}
+html.dark .shadow-float {
+  box-shadow:
+    0 8px 16px rgba(0, 0, 0, 0.25),
+    0 16px 32px rgba(0, 0, 0, 0.2),
+    0 24px 48px rgba(0, 0, 0, 0.15),
+    0 0 40px -12px rgb(var(--accent-500) / 0.12);
+}
+
+/* Mobile safe area for bottom tab bar (notch, home indicator) */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Extend bg to left edge - use on title/header blocks */
+.full-bleed-left {
+  margin-left: calc(-1 * max(0.75rem, env(safe-area-inset-left, 0px)));
+  padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+}
+@media (min-width: 640px) {
+  .full-bleed-left {
+    margin-left: -1rem;
+    padding-left: 1rem;
+  }
+}
+@media (min-width: 768px) {
+  .full-bleed-left {
+    margin-left: -1.25rem;
+    padding-left: 1.25rem;
+  }
 }
