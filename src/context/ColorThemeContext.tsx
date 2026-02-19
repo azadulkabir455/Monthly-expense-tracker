@@ -25,7 +25,7 @@ export const COLOR_THEMES: { id: ColorThemeId; label: string; primary: string; s
   { id: "rose", label: "Rose", primary: "#f43f5e", secondary: "#fb7185" },
 ];
 
-const ColorThemeContext = createContext<{
+export const ColorThemeContext = createContext<{
   colorTheme: ColorThemeId;
   setColorTheme: (t: ColorThemeId) => void;
   mounted: boolean;

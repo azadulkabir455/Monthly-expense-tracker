@@ -24,11 +24,11 @@ import {
 } from "@/blocks/elements/SectionCard";
 import { AddWishModal } from "@/blocks/components/AddWishModal";
 import { EditWishModal } from "@/blocks/components/EditWishModal";
-import { ConfirmModal } from "@/blocks/components/ConfirmModal";
+import { ConfirmModal } from "@/blocks/components/shared/ConfirmModal";
 import { Button } from "@/blocks/elements/Button";
 import { Input } from "@/blocks/elements/Input";
 import { Checkbox } from "@/blocks/elements/Checkbox";
-import { SelectDropdown, type SelectOption } from "@/blocks/components/SelectDropdown";
+import { SelectDropdown, type SelectOption } from "@/blocks/components/shared/SelectDropdown";
 import { formatMoneyK } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";

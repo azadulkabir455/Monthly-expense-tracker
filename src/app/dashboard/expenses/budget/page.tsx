@@ -12,7 +12,7 @@ import { BudgetRoundChart } from "@/blocks/components/BudgetRoundChart";
 import { BudgetItemTableSection } from "@/blocks/sections/BudgetItemTableSection";
 import { Button } from "@/blocks/elements/Button";
 import { MonthYearDatePicker } from "@/blocks/components/MonthYearDatePicker";
-import type { SelectOption } from "@/blocks/components/SelectDropdown";
+import type { SelectOption } from "@/blocks/components/shared/SelectDropdown";
 import { useStartYear } from "@/hooks/useStartYear";
 import { useClientDate } from "@/hooks/useClientDate";
 import { Wallet, Plus } from "lucide-react";

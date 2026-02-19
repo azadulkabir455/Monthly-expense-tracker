@@ -16,8 +16,8 @@ import {
 import { Button } from "@/blocks/elements/Button";
 import { Input } from "@/blocks/elements/Input";
 import { Label } from "@/blocks/elements/Label";
-import { SelectDropdown } from "@/blocks/components/SelectDropdown";
-import { IconSearchInput } from "@/blocks/components/IconSearchInput";
+import { SelectDropdown } from "@/blocks/components/shared/SelectDropdown";
+import { IconSearchInput } from "@/blocks/components/shared/IconSearchInput";
 
 export function AddWishFormSection() {
   const router = useRouter();

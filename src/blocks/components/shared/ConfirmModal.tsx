@@ -19,15 +19,10 @@ export interface ConfirmModalProps {
   open: boolean;
   onClose: () => void;
   onConfirm: () => void;
-  /** Customizable title (default: "Confirm") */
   title?: string;
-  /** Customizable message body */
   message?: string;
-  /** Confirm button label (default: "Sure") */
   confirmLabel?: string;
-  /** Cancel button label (default: "Cancel") — set to null to hide cancel button */
   cancelLabel?: string | null;
-  /** Use danger styling for confirm button (red) — default true for delete flows */
   variant?: "danger" | "default";
 }
 

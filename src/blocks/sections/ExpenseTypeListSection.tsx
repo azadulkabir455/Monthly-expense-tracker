@@ -14,7 +14,7 @@ import { Tag, Pencil, Trash2, MoreVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
 import { EditExpenseTypeModal } from "@/blocks/components/EditExpenseTypeModal";
-import { ConfirmModal } from "@/blocks/components/ConfirmModal";
+import { ConfirmModal } from "@/blocks/components/shared/ConfirmModal";
 
 export function ExpenseTypeListSection() {
   const dispatch = useAppDispatch();

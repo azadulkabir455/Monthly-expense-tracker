@@ -1,6 +1,6 @@
 import { AuthLayout } from "@/blocks/layout/AuthLayout";
-import { SignupFormSection } from "@/blocks/sections/SignupFormSection";
-import { ThemeToggle } from "@/blocks/components/ThemeToggle";
+import { SignupFormSection } from "@/blocks/auth/sections/SignupFormSection";
+import { ThemeToggle } from "@/blocks/components/shared/ThemeToggle";
 
 export default function SignupPage() {
   return (

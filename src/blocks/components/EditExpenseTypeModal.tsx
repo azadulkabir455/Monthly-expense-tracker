@@ -6,7 +6,7 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { updateExpenseType, selectExpenseCategories } from "@/store/slices/expensesSlice";
 import { MAIN_EXPENSE_CATEGORIES } from "@/types/expense";
 import type { ExpenseType } from "@/types/expenseCategory";
-import { SelectDropdown, type SelectOption } from "@/blocks/components/SelectDropdown";
+import { SelectDropdown, type SelectOption } from "@/blocks/components/shared/SelectDropdown";
 import {
   Card,
   CardContent,

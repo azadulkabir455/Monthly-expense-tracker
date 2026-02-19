@@ -10,8 +10,8 @@ import {
 } from "@/store/slices/expensesSlice";
 import { MAIN_EXPENSE_CATEGORIES } from "@/types/expense";
 import { MonthYearDatePicker } from "@/blocks/components/MonthYearDatePicker";
-import { SelectDropdown, type SelectOption } from "@/blocks/components/SelectDropdown";
-import { ConfirmModal } from "@/blocks/components/ConfirmModal";
+import { SelectDropdown, type SelectOption } from "@/blocks/components/shared/SelectDropdown";
+import { ConfirmModal } from "@/blocks/components/shared/ConfirmModal";
 import { EditDayExpensesModal } from "@/blocks/components/EditDayExpensesModal";
 import { formatMoneyK } from "@/lib/utils";
 import { cn } from "@/lib/utils";

@@ -15,7 +15,7 @@ import {
 import { Button } from "@/blocks/elements/Button";
 import { Input } from "@/blocks/elements/Input";
 import { Label } from "@/blocks/elements/Label";
-import { SelectDropdown, type SelectOption } from "@/blocks/components/SelectDropdown";
+import { SelectDropdown, type SelectOption } from "@/blocks/components/shared/SelectDropdown";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";

@@ -24,7 +24,7 @@ import { useThemeContext } from "@/context/ThemeContext";
 import { useStartYear } from "@/hooks/useStartYear";
 import { useClientDate } from "@/hooks/useClientDate";
 import { MonthYearDatePicker } from "@/blocks/components/MonthYearDatePicker";
-import { SelectDropdown, type SelectOption } from "@/blocks/components/SelectDropdown";
+import { SelectDropdown, type SelectOption } from "@/blocks/components/shared/SelectDropdown";
 import { FilterControls } from "@/blocks/components/FilterControls";
 import { Checkbox } from "@/blocks/elements/Checkbox";
 import {

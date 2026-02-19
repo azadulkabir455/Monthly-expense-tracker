@@ -16,7 +16,7 @@ import { Pencil, Trash2, Home, MoreVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
 import { EditExpenseCategoryModal } from "@/blocks/components/EditExpenseCategoryModal";
-import { ConfirmModal } from "@/blocks/components/ConfirmModal";
+import { ConfirmModal } from "@/blocks/components/shared/ConfirmModal";
 
 export function ExpenseCategoryListSection() {
   const dispatch = useAppDispatch();

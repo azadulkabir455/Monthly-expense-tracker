@@ -11,7 +11,7 @@ import { AppLoader } from "@/components/AppLoader";
 
 export type Theme = "light" | "dark";
 
-const ThemeContext = createContext<{
+export const ThemeContext = createContext<{
   theme: Theme;
   setTheme: (t: Theme) => void;
   mounted: boolean;

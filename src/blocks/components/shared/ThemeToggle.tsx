@@ -28,7 +28,6 @@ export function ThemeToggle({
       className={cn("z-20", showLabel && "w-full justify-start gap-3", className ?? "absolute right-4 top-4")}
       aria-label="Toggle theme"
     >
-      {/* Light mode = Sun (সূর্য), Dark mode = Moon (চাঁদ) - theme state দিয়ে icon change */}
       {theme === "dark" ? (
         <Moon className="h-5 w-5 shrink-0" />
       ) : (

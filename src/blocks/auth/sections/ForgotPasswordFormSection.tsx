@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { sendPasswordReset, getAuthErrorMessage } from "@/lib/firebase/auth";
 import {
   Card,
   CardContent,
@@ -18,15 +19,24 @@ export function ForgotPasswordFormSection() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     setLoading(true);
-    // TODO: Firebase send password reset email
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await sendPasswordReset(email);
       setSent(true);
-    }, 800);
+    } catch (err: unknown) {
+      setError(
+        err && typeof err === "object" && "code" in err
+          ? getAuthErrorMessage(err as Parameters<typeof getAuthErrorMessage>[0])
+          : "Failed to send reset email. Try again."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (sent) {
@@ -68,6 +78,11 @@ export function ForgotPasswordFormSection() {
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
+          {error && (
+            <p className="rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-500">
+              {error}
+            </p>
+          )}
           <div className="space-y-2">
             <Label htmlFor="forgot-email">Email</Label>
             <Input

@@ -136,6 +136,10 @@ body {
   overflow-x: hidden;
 }
 
+button {
+  cursor: pointer;
+}
+
 /* Dark mode - gorgeous indigo/violet gradient */
 html.dark body {
   background: linear-gradient(

@@ -14,7 +14,7 @@ import { Pencil, Trash2, MoreVertical } from "lucide-react";
 import { formatMoneyK } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
-import { ConfirmModal } from "@/blocks/components/ConfirmModal";
+import { ConfirmModal } from "@/blocks/components/shared/ConfirmModal";
 import { EditBudgetItemModal } from "@/blocks/components/EditBudgetItemModal";
 
 interface BudgetItemTableSectionProps {

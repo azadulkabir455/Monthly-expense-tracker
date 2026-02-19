@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { signOut } from "@/lib/firebase/auth";
 import {
   LayoutDashboard,
   LogOut,
@@ -20,7 +21,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ThemeToggle } from "@/blocks/components/ThemeToggle";
+import { ThemeToggle } from "@/blocks/components/shared/ThemeToggle";
 import { useThemeContext } from "@/context/ThemeContext";
 
 type NavLink = { href: string; label: string; icon: typeof LayoutDashboard };
@@ -71,7 +72,13 @@ const moreLinks = [
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { theme } = useThemeContext();
+
+  const handleLogout = async () => {
+    await signOut();
+    router.push("/login");
+  };
   const [moreSheetOpen, setMoreSheetOpen] = useState(false);
   const isWishlistActive = pathname.startsWith("/dashboard/wishlist");
   const isExpensesActive = pathname.startsWith("/dashboard/expenses");
@@ -150,17 +157,20 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </Link>
           ))}
           <div className={cn("my-2 border-t", isDark ? "border-white/10" : "border-[#ddd]")} />
-          <Link
-            href="/login"
-            onClick={() => setMoreSheetOpen(false)}
+          <button
+            type="button"
+            onClick={() => {
+              setMoreSheetOpen(false);
+              void handleLogout();
+            }}
             className={cn(
-              "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition",
+              "flex w-full cursor-pointer items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition",
               isDark ? "text-red-400 hover:bg-red-500/20" : "text-red-600 hover:bg-red-50"
             )}
           >
             <LogOut className="h-5 w-5" />
             Logout
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -243,13 +253,14 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           )}
         </nav>
         <div className={cn("border-t p-3", isDark ? "border-white/10" : "border-[#ddd]")}>
-          <Link
-            href="/login"
-            className={cn("flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition", isDark ? "text-slate-400 hover:bg-white/5 hover:text-white" : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900")}
+          <button
+            type="button"
+            onClick={() => void handleLogout()}
+            className={cn("flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition", isDark ? "text-slate-400 hover:bg-white/5 hover:text-white" : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900")}
           >
             <LogOut className="h-5 w-5" />
             Logout
-          </Link>
+          </button>
         </div>
       </aside>
 

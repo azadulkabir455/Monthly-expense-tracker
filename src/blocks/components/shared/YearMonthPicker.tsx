@@ -1,7 +1,7 @@
 "use client";
 
-import { YearDropdown } from "@/blocks/components/YearDropdown";
-import { SelectDropdown, type SelectOption } from "@/blocks/components/SelectDropdown";
+import { YearDropdown } from "@/blocks/components/shared/YearDropdown";
+import { SelectDropdown, type SelectOption } from "@/blocks/components/shared/SelectDropdown";
 import { Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 
