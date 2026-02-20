@@ -10,9 +10,15 @@ import {
 import { AddWishPriorityModal } from "@/blocks/components/AddWishPriorityModal";
 import { Button } from "@/blocks/elements/Button";
 import { Flag } from "lucide-react";
+import { useWishlistTypes } from "@/lib/firebase/wishlist";
 
 export function WishPrioritySection() {
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const { addType } = useWishlistTypes();
+
+  const handleAdd = async (name: string, order: number) => {
+    await addType(name, order);
+  };
 
   return (
     <SectionCard>
@@ -34,7 +40,11 @@ export function WishPrioritySection() {
         </Button>
       </SectionHeader>
 
-      <AddWishPriorityModal open={addModalOpen} onClose={() => setAddModalOpen(false)} />
+      <AddWishPriorityModal
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        onAdd={handleAdd}
+      />
     </SectionCard>
   );
 }

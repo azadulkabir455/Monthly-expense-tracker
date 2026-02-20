@@ -2,8 +2,9 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { useAppSelector, useAppDispatch } from "@/store/hooks";
-import { selectAllWishItems, selectWishCategories, selectWishPriorities, removeWish, removeWishes } from "@/store/slices/wishlistSlice";
+import { toast } from "sonner";
+import { useWishlistCategories, useWishlistTypes, useWishlistItems } from "@/lib/firebase/wishlist";
+import { getWishlistErrorMessage } from "@/lib/firebase/wishlist/errors";
 import type { WishItem } from "@/types/wishlist";
 import {
   Gift,
@@ -39,12 +40,20 @@ const CATEGORY_ALL: SelectOption = { value: "", label: "All Categories" };
 const PRIORITY_ALL: SelectOption = { value: "", label: "All Priorities" };
 
 export function WishListSection() {
-  const dispatch = useAppDispatch();
-  const categories = useAppSelector(selectWishCategories);
-  const priorities = useAppSelector(selectWishPriorities);
   const { theme } = useThemeContext();
   const isDark = theme === "dark";
-  const allWishes = useAppSelector(selectAllWishItems);
+  const { categories, loading: categoriesLoading } = useWishlistCategories();
+  const { types: priorities, loading: prioritiesLoading } = useWishlistTypes();
+  const priorityOrder = priorities.map((p) => ({ id: p.id, order: p.order }));
+  const {
+    items: allWishes,
+    loading: itemsLoading,
+    addItem,
+    updateItem,
+    deleteItem,
+    deleteItems,
+  } = useWishlistItems(priorityOrder);
+  const loading = categoriesLoading || prioritiesLoading || itemsLoading;
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCategoryId, setFilterCategoryId] = useState("");
   const [filterPriorityId, setFilterPriorityId] = useState<string>("");
@@ -136,15 +145,20 @@ export function WishListSection() {
     setConfirmModalOpen(true);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!confirmState) return;
-    if (confirmState.type === "bulk") {
-      dispatch(removeWishes(Array.from(selectedIds)));
-      setSelectedIds(new Set());
-    } else {
-      dispatch(removeWish(confirmState.item.id));
+    try {
+      if (confirmState.type === "bulk") {
+        await deleteItems(Array.from(selectedIds));
+        setSelectedIds(new Set());
+        toast.success("Selected items deleted.");
+      } else {
+        await deleteItem(confirmState.item.id);
+        toast.success("Wish deleted.");
+      }
+    } catch (err) {
+      toast.error(getWishlistErrorMessage(err, "delete", "wish"));
     }
-    setConfirmState(null);
   };
 
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -275,7 +289,7 @@ export function WishListSection() {
           <div className="min-w-0 shrink-0">
             <SectionTitle>Wish List</SectionTitle>
             <SectionSubtitle>
-              {allWishes.length} item{allWishes.length !== 1 ? "s" : ""} — search, bulk delete, edit
+              {loading ? "…" : allWishes.length} item{allWishes.length !== 1 ? "s" : ""} — search, bulk delete, edit
             </SectionSubtitle>
           </div>
           <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-3">
@@ -389,6 +403,11 @@ export function WishListSection() {
         </div>
       )}
 
+      {loading ? (
+        <p className={cn("py-8 text-center text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
+          Loading…
+        </p>
+      ) : (
       <ul className="space-y-2 sm:space-y-3">
         {visibleWishes.map((item) => {
           const isSelected = selectedIds.has(item.id);
@@ -545,8 +564,9 @@ export function WishListSection() {
           );
         })}
       </ul>
+      )}
 
-      {visibleWishes.length === 0 && (
+      {!loading && visibleWishes.length === 0 && (
         <p className={cn("py-8 text-center text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
           {searchQuery.trim() || filterCategoryId || filterPriorityId
             ? "No results for your filters."
@@ -560,8 +580,29 @@ export function WishListSection() {
         </div>
       )}
 
-      <EditWishModal item={editingItem} open={editModalOpen} onClose={handleCloseEditModal} />
-      <AddWishModal open={addModalOpen} onClose={() => setAddModalOpen(false)} />
+      <EditWishModal
+        item={editingItem}
+        open={editModalOpen}
+        onClose={handleCloseEditModal}
+        categories={categories}
+        priorities={priorities}
+        onUpdate={async (updated) => {
+          await updateItem(updated.id, updated);
+          toast.success("Wish updated.");
+          handleCloseEditModal();
+        }}
+      />
+      <AddWishModal
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        categories={categories}
+        priorities={priorities}
+        onAdd={async (data) => {
+          await addItem(data);
+          toast.success("Wish added.");
+          setAddModalOpen(false);
+        }}
+      />
       <ConfirmModal
         open={confirmModalOpen}
         onClose={() => {

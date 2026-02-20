@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useAppDispatch } from "@/store/hooks";
-import { updatePriority } from "@/store/slices/wishlistSlice";
+import { toast } from "sonner";
 import type { WishPriorityType } from "@/types/wishlist";
 import {
   Card,
@@ -19,19 +18,21 @@ import { Label } from "@/blocks/elements/Label";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
+import { getWishlistErrorMessage } from "@/lib/firebase/wishlist/errors";
 
 interface EditWishPriorityModalProps {
   priority: WishPriorityType | null;
   open: boolean;
   onClose: () => void;
+  onUpdate: (id: string, name: string, order: number) => Promise<void>;
 }
 
-export function EditWishPriorityModal({ priority, open, onClose }: EditWishPriorityModalProps) {
-  const dispatch = useAppDispatch();
+export function EditWishPriorityModal({ priority, open, onClose, onUpdate }: EditWishPriorityModalProps) {
   const { theme } = useThemeContext();
   const isDark = theme === "dark";
   const [name, setName] = useState("");
   const [order, setOrder] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (priority) {
@@ -54,11 +55,19 @@ export function EditWishPriorityModal({ priority, open, onClose }: EditWishPrior
     };
   }, [open, onClose]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!priority || !name.trim()) return;
-    dispatch(updatePriority({ ...priority, name: name.trim(), order }));
-    onClose();
+    if (!priority || !name.trim() || submitting) return;
+    setSubmitting(true);
+    try {
+      await onUpdate(priority.id, name.trim(), order);
+      toast.success("Priority type updated.");
+      onClose();
+    } catch (err) {
+      toast.error(getWishlistErrorMessage(err, "update", "priority"));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (!open || !priority) return null;
@@ -111,8 +120,8 @@ export function EditWishPriorityModal({ priority, open, onClose }: EditWishPrior
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-2 sm:flex-row">
-            <Button type="submit" className="w-full sm:w-auto">
-              Save Changes
+            <Button type="submit" className="w-full sm:w-auto" disabled={submitting}>
+              {submitting ? "Saving…" : "Save Changes"}
             </Button>
             <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={onClose}>
               Cancel

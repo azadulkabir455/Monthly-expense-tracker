@@ -18,7 +18,7 @@ import { useThemeContext } from "@/context/ThemeContext";
 export interface ConfirmModalProps {
   open: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
   title?: string;
   message?: string;
   confirmLabel?: string;
@@ -54,8 +54,8 @@ export function ConfirmModal({
     };
   }, [open, onClose]);
 
-  const handleConfirm = () => {
-    onConfirm();
+  const handleConfirm = async () => {
+    await Promise.resolve(onConfirm());
     onClose();
   };
 

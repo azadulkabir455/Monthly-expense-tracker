@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useAppSelector, useAppDispatch } from "@/store/hooks";
-import { addWish } from "@/store/slices/wishlistSlice";
-import { selectWishCategories, selectWishPriorities } from "@/store/slices/wishlistSlice";
-import type { WishIconType } from "@/types/wishlist";
+import { toast } from "sonner";
+import type { WishCategory, WishItem, WishPriorityType, WishIconType } from "@/types/wishlist";
+import { getWishlistErrorMessage } from "@/lib/firebase/wishlist/errors";
 import {
   Card,
   CardContent,
@@ -26,12 +25,12 @@ import { useThemeContext } from "@/context/ThemeContext";
 interface AddWishModalProps {
   open: boolean;
   onClose: () => void;
+  categories: WishCategory[];
+  priorities: WishPriorityType[];
+  onAdd: (data: Omit<WishItem, "id">) => Promise<void>;
 }
 
-export function AddWishModal({ open, onClose }: AddWishModalProps) {
-  const dispatch = useAppDispatch();
-  const categories = useAppSelector(selectWishCategories);
-  const priorities = useAppSelector(selectWishPriorities);
+export function AddWishModal({ open, onClose, categories, priorities, onAdd }: AddWishModalProps) {
   const { theme } = useThemeContext();
   const isDark = theme === "dark";
 
@@ -40,7 +39,7 @@ export function AddWishModal({ open, onClose }: AddWishModalProps) {
   const [categoryId, setCategoryId] = useState<string>("");
   const [priorityId, setPriorityId] = useState<string>("");
   const [iconType, setIconType] = useState<WishIconType>("gift");
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const categoryOptions: SelectOption[] = [
     { value: "", label: "Select category" },
@@ -72,22 +71,25 @@ export function AddWishModal({ open, onClose }: AddWishModalProps) {
     };
   }, [open, onClose]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const amount = Number.parseInt(approximateAmount, 10);
-    if (!name.trim() || Number.isNaN(amount) || amount < 0) return;
-    setLoading(true);
-    dispatch(
-      addWish({
+    if (!name.trim() || Number.isNaN(amount) || amount < 0 || submitting) return;
+    setSubmitting(true);
+    try {
+      await onAdd({
         name: name.trim(),
         approximateAmount: amount,
         priorityId: priorityId || priorities[0]?.id || "",
         iconType,
         categoryId: categoryId || undefined,
-      })
-    );
-    setLoading(false);
-    onClose();
+      });
+      onClose();
+    } catch (err) {
+      toast.error(getWishlistErrorMessage(err, "add", "wish"));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (!open) return null;
@@ -174,8 +176,8 @@ export function AddWishModal({ open, onClose }: AddWishModalProps) {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-2 sm:flex-row">
-            <Button type="submit" className="w-full sm:w-auto" disabled={loading}>
-              {loading ? "Adding..." : "Add Wish"}
+            <Button type="submit" className="w-full sm:w-auto" disabled={submitting}>
+              {submitting ? "Adding…" : "Add Wish"}
             </Button>
             <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={onClose}>
               Cancel

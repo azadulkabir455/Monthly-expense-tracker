@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAppSelector, useAppDispatch } from "@/store/hooks";
-import { selectWishCategories, removeCategory } from "@/store/slices/wishlistSlice";
+import { toast } from "sonner";
+import { useWishlistCategories } from "@/lib/firebase/wishlist";
+import { getWishlistErrorMessage } from "@/lib/firebase/wishlist/errors";
 import type { WishCategory } from "@/types/wishlist";
 import {
   SectionCard,
@@ -17,10 +18,9 @@ import { EditWishCategoryModal } from "@/blocks/components/EditWishCategoryModal
 import { ConfirmModal } from "@/blocks/components/shared/ConfirmModal";
 
 export function WishCategoryListSection() {
-  const dispatch = useAppDispatch();
   const { theme } = useThemeContext();
   const isDark = theme === "dark";
-  const categories = useAppSelector(selectWishCategories);
+  const { categories, loading, updateCategory, deleteCategory } = useWishlistCategories();
   const [editingCategory, setEditingCategory] = useState<WishCategory | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<WishCategory | null>(null);
@@ -46,11 +46,19 @@ export function WishCategoryListSection() {
     setConfirmModalOpen(true);
   };
 
-  const handleConfirmDelete = () => {
-    if (deleteTarget) {
-      dispatch(removeCategory(deleteTarget.id));
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteCategory(deleteTarget.id);
+      toast.success("Category deleted.");
       setDeleteTarget(null);
+    } catch (err) {
+      toast.error(getWishlistErrorMessage(err, "delete", "category"));
     }
+  };
+
+  const handleUpdate = async (id: string, name: string) => {
+    await updateCategory(id, name);
   };
 
   return (
@@ -64,6 +72,11 @@ export function WishCategoryListSection() {
         </div>
       </SectionHeader>
 
+      {loading ? (
+        <p className={cn("py-6 text-center text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
+          Loading…
+        </p>
+      ) : (
       <ul className="space-y-2 sm:space-y-3 overflow-visible">
         {categories.map((cat) => (
           <li
@@ -170,10 +183,11 @@ export function WishCategoryListSection() {
           </li>
         ))}
       </ul>
+      )}
 
-      {categories.length === 0 && (
+      {!loading && categories.length === 0 && (
         <p className={cn("py-8 text-center text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
-          No categories yet. Add one above to get started!
+          No data. Add a category above to get started.
         </p>
       )}
 
@@ -184,6 +198,7 @@ export function WishCategoryListSection() {
           setEditModalOpen(false);
           setEditingCategory(null);
         }}
+        onUpdate={handleUpdate}
       />
       <ConfirmModal
         open={confirmModalOpen}

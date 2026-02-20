@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useAppDispatch } from "@/store/hooks";
-import { addCategory } from "@/store/slices/wishlistSlice";
+import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -18,17 +17,19 @@ import { Label } from "@/blocks/elements/Label";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
+import { getWishlistErrorMessage } from "@/lib/firebase/wishlist/errors";
 
 interface AddWishCategoryModalProps {
   open: boolean;
   onClose: () => void;
+  onAdd: (name: string) => Promise<void>;
 }
 
-export function AddWishCategoryModal({ open, onClose }: AddWishCategoryModalProps) {
-  const dispatch = useAppDispatch();
+export function AddWishCategoryModal({ open, onClose, onAdd }: AddWishCategoryModalProps) {
   const { theme } = useThemeContext();
   const isDark = theme === "dark";
   const [name, setName] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (open) setName("");
@@ -48,11 +49,19 @@ export function AddWishCategoryModal({ open, onClose }: AddWishCategoryModalProp
     };
   }, [open, onClose]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
-    dispatch(addCategory({ name: name.trim() }));
-    onClose();
+    if (!name.trim() || submitting) return;
+    setSubmitting(true);
+    try {
+      await onAdd(name.trim());
+      toast.success("Category added.");
+      onClose();
+    } catch (err) {
+      toast.error(getWishlistErrorMessage(err, "add", "category"));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (!open) return null;
@@ -94,8 +103,8 @@ export function AddWishCategoryModal({ open, onClose }: AddWishCategoryModalProp
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-2 sm:flex-row">
-            <Button type="submit" className="w-full sm:w-auto">
-              Add Category
+            <Button type="submit" className="w-full sm:w-auto" disabled={submitting}>
+              {submitting ? "Adding…" : "Add Category"}
             </Button>
             <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={onClose}>
               Cancel

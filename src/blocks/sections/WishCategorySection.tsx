@@ -10,9 +10,15 @@ import {
 import { AddWishCategoryModal } from "@/blocks/components/AddWishCategoryModal";
 import { Button } from "@/blocks/elements/Button";
 import { FolderPlus } from "lucide-react";
+import { useWishlistCategories } from "@/lib/firebase/wishlist";
 
 export function WishCategorySection() {
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const { addCategory } = useWishlistCategories();
+
+  const handleAdd = async (name: string) => {
+    await addCategory(name);
+  };
 
   return (
     <SectionCard>
@@ -34,7 +40,11 @@ export function WishCategorySection() {
         </Button>
       </SectionHeader>
 
-      <AddWishCategoryModal open={addModalOpen} onClose={() => setAddModalOpen(false)} />
+      <AddWishCategoryModal
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        onAdd={handleAdd}
+      />
     </SectionCard>
   );
 }

@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useAppDispatch } from "@/store/hooks";
-import { addPriority } from "@/store/slices/wishlistSlice";
+import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -18,18 +17,20 @@ import { Label } from "@/blocks/elements/Label";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
+import { getWishlistErrorMessage } from "@/lib/firebase/wishlist/errors";
 
 interface AddWishPriorityModalProps {
   open: boolean;
   onClose: () => void;
+  onAdd: (name: string, order: number) => Promise<void>;
 }
 
-export function AddWishPriorityModal({ open, onClose }: AddWishPriorityModalProps) {
-  const dispatch = useAppDispatch();
+export function AddWishPriorityModal({ open, onClose, onAdd }: AddWishPriorityModalProps) {
   const { theme } = useThemeContext();
   const isDark = theme === "dark";
   const [name, setName] = useState("");
   const [order, setOrder] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -52,11 +53,19 @@ export function AddWishPriorityModal({ open, onClose }: AddWishPriorityModalProp
     };
   }, [open, onClose]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
-    dispatch(addPriority({ name: name.trim(), order }));
-    onClose();
+    if (!name.trim() || submitting) return;
+    setSubmitting(true);
+    try {
+      await onAdd(name.trim(), order);
+      toast.success("Priority type added.");
+      onClose();
+    } catch (err) {
+      toast.error(getWishlistErrorMessage(err, "add", "priority"));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (!open) return null;
@@ -109,8 +118,8 @@ export function AddWishPriorityModal({ open, onClose }: AddWishPriorityModalProp
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-2 sm:flex-row">
-            <Button type="submit" className="w-full sm:w-auto">
-              Add Priority
+            <Button type="submit" className="w-full sm:w-auto" disabled={submitting}>
+              {submitting ? "Adding…" : "Add Priority"}
             </Button>
             <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={onClose}>
               Cancel

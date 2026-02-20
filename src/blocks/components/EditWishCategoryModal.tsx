@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useAppDispatch } from "@/store/hooks";
-import { updateCategory } from "@/store/slices/wishlistSlice";
+import { toast } from "sonner";
 import type { WishCategory } from "@/types/wishlist";
 import {
   Card,
@@ -19,18 +18,20 @@ import { Label } from "@/blocks/elements/Label";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
+import { getWishlistErrorMessage } from "@/lib/firebase/wishlist/errors";
 
 interface EditWishCategoryModalProps {
   category: WishCategory | null;
   open: boolean;
   onClose: () => void;
+  onUpdate: (id: string, name: string) => Promise<void>;
 }
 
-export function EditWishCategoryModal({ category, open, onClose }: EditWishCategoryModalProps) {
-  const dispatch = useAppDispatch();
+export function EditWishCategoryModal({ category, open, onClose, onUpdate }: EditWishCategoryModalProps) {
   const { theme } = useThemeContext();
   const isDark = theme === "dark";
   const [name, setName] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (category) setName(category.name);
@@ -50,11 +51,19 @@ export function EditWishCategoryModal({ category, open, onClose }: EditWishCateg
     };
   }, [open, onClose]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!category || !name.trim()) return;
-    dispatch(updateCategory({ ...category, name: name.trim() }));
-    onClose();
+    if (!category || !name.trim() || submitting) return;
+    setSubmitting(true);
+    try {
+      await onUpdate(category.id, name.trim());
+      toast.success("Category updated.");
+      onClose();
+    } catch (err) {
+      toast.error(getWishlistErrorMessage(err, "update", "category"));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (!open || !category) return null;
@@ -96,8 +105,8 @@ export function EditWishCategoryModal({ category, open, onClose }: EditWishCateg
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-2 sm:flex-row">
-            <Button type="submit" className="w-full sm:w-auto">
-              Save Changes
+            <Button type="submit" className="w-full sm:w-auto" disabled={submitting}>
+              {submitting ? "Saving…" : "Save Changes"}
             </Button>
             <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={onClose}>
               Cancel

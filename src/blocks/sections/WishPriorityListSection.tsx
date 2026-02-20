@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAppSelector, useAppDispatch } from "@/store/hooks";
-import { selectWishPriorities, removePriority } from "@/store/slices/wishlistSlice";
+import { toast } from "sonner";
+import { useWishlistTypes } from "@/lib/firebase/wishlist";
+import { getWishlistErrorMessage } from "@/lib/firebase/wishlist/errors";
 import type { WishPriorityType } from "@/types/wishlist";
 import {
   SectionCard,
@@ -17,10 +18,9 @@ import { EditWishPriorityModal } from "@/blocks/components/EditWishPriorityModal
 import { ConfirmModal } from "@/blocks/components/shared/ConfirmModal";
 
 export function WishPriorityListSection() {
-  const dispatch = useAppDispatch();
   const { theme } = useThemeContext();
   const isDark = theme === "dark";
-  const priorities = useAppSelector(selectWishPriorities);
+  const { types: priorities, loading, updateType, deleteType } = useWishlistTypes();
   const [editingPriority, setEditingPriority] = useState<WishPriorityType | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<WishPriorityType | null>(null);
@@ -51,14 +51,23 @@ export function WishPriorityListSection() {
     setConfirmModalOpen(true);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
     if (priorities.length <= 1) {
       setDeleteTarget(null);
       return;
     }
-    dispatch(removePriority(deleteTarget.id));
-    setDeleteTarget(null);
+    try {
+      await deleteType(deleteTarget.id);
+      toast.success("Priority type deleted.");
+      setDeleteTarget(null);
+    } catch (err) {
+      toast.error(getWishlistErrorMessage(err, "delete", "priority"));
+    }
+  };
+
+  const handleUpdate = async (id: string, name: string, order: number) => {
+    await updateType(id, name, order);
   };
 
   return (
@@ -72,6 +81,11 @@ export function WishPriorityListSection() {
         </div>
       </SectionHeader>
 
+      {loading ? (
+        <p className={cn("py-6 text-center text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
+          Loading…
+        </p>
+      ) : (
       <ul className="space-y-2 sm:space-y-3">
         {priorities.map((p) => (
           <li
@@ -188,10 +202,11 @@ export function WishPriorityListSection() {
           </li>
         ))}
       </ul>
+      )}
 
-      {priorities.length === 0 && (
+      {!loading && priorities.length === 0 && (
         <p className={cn("py-8 text-center text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
-          No priority types yet. Add one above to get started!
+          No data. Add a priority type above to get started.
         </p>
       )}
 
@@ -202,6 +217,7 @@ export function WishPriorityListSection() {
           setEditModalOpen(false);
           setEditingPriority(null);
         }}
+        onUpdate={handleUpdate}
       />
       <ConfirmModal
         open={confirmModalOpen}
