@@ -9,8 +9,8 @@ import { useThemeContext } from "@/context/ThemeContext";
 import { useClientDate } from "@/hooks/useClientDate";
 
 const MONTH_NAMES = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
 function getDaysInMonth(year: number, month: number): number {

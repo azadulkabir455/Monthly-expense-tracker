@@ -16,6 +16,13 @@ function formatMoney(n: number) {
   }).format(n) + " ৳";
 }
 
+/** "February 2026" → "Feb 2026" */
+function shortMonthLabel(monthLabel: string) {
+  const i = monthLabel.indexOf(" ");
+  if (i <= 0) return monthLabel;
+  return monthLabel.slice(0, 3) + monthLabel.slice(i);
+}
+
 export function MonthlySummarySection() {
   const currentMonth = useAppSelector(selectCurrentMonthSummary);
   const allMonths = useAppSelector(selectMonthlySummaries);
@@ -26,7 +33,7 @@ export function MonthlySummarySection() {
 
       {currentMonth && (
         <SummaryCardSection
-          title={`This month (${currentMonth.monthLabel})`}
+          title={`This month (${shortMonthLabel(currentMonth.monthLabel)})`}
           summary={currentMonth}
         />
       )}
@@ -46,7 +53,7 @@ export function MonthlySummarySection() {
                     key={`${m.year}-${m.month}`}
                     className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-4 py-3"
                   >
-                    <span className="font-medium text-foreground">{m.monthLabel}</span>
+                    <span className="font-medium text-foreground">{shortMonthLabel(m.monthLabel)}</span>
                     <span className="text-sm text-muted-foreground">
                       Income {formatMoney(m.totalIncome)} · Expense {formatMoney(m.totalExpense)} · Balance {formatMoney(m.balance)}
                     </span>

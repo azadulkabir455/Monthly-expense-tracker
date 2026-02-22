@@ -21,18 +21,18 @@ import { cn } from "@/lib/utils";
 import { Skeleton } from "@/blocks/elements/Skeleton";
 
 const MONTH_OPTIONS: SelectOption[] = [
-  { value: 1, label: "January" },
-  { value: 2, label: "February" },
-  { value: 3, label: "March" },
-  { value: 4, label: "April" },
+  { value: 1, label: "Jan" },
+  { value: 2, label: "Feb" },
+  { value: 3, label: "Mar" },
+  { value: 4, label: "Apr" },
   { value: 5, label: "May" },
-  { value: 6, label: "June" },
-  { value: 7, label: "July" },
-  { value: 8, label: "August" },
-  { value: 9, label: "September" },
-  { value: 10, label: "October" },
-  { value: 11, label: "November" },
-  { value: 12, label: "December" },
+  { value: 6, label: "Jun" },
+  { value: 7, label: "Jul" },
+  { value: 8, label: "Aug" },
+  { value: 9, label: "Sep" },
+  { value: 10, label: "Oct" },
+  { value: 11, label: "Nov" },
+  { value: 12, label: "Dec" },
 ];
 
 export default function MonthlyBudgetPage() {
@@ -125,35 +125,35 @@ export default function MonthlyBudgetPage() {
             Debit = total maser taka, Credit = daily budget items total, Balance = baki.
           </p>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:gap-3">
+        <div className="flex w-full shrink-0 flex-row flex-nowrap items-center gap-2 sm:gap-3 sm:w-auto">
           <Button
             type="button"
             size="default"
-            className="h-11 shrink-0 border border-[#ddd] shadow-card dark:border-white/10"
+            className="h-11 min-w-0 flex-1 border border-[#ddd] shadow-card dark:border-white/10 sm:flex-initial"
             onClick={() => setDebitModalOpen(true)}
           >
-            <Wallet className="mr-1.5 h-4 w-4" />
-            {hasDebitAmount ? "Edit Debit Amount" : "Add Debit Amount"}
+            <Wallet className="mr-1.5 h-4 w-4 shrink-0" />
+            <span className="min-w-0 truncate">{hasDebitAmount ? "Edit Debit Amount" : "Add Debit Amount"}</span>
           </Button>
           <Button
             type="button"
             variant="secondary"
             size="default"
-            className="h-11 shrink-0 border border-[#ddd] shadow-card dark:border-white/10"
+            className="h-11 min-w-0 flex-1 border border-[#ddd] shadow-card dark:border-white/10 sm:flex-initial"
             onClick={() => setBudgetModalOpen(true)}
           >
-            <Plus className="mr-1.5 h-4 w-4" />
-            Add Daily Budget
+            <Plus className="mr-1.5 h-4 w-4 shrink-0" />
+            <span className="min-w-0 truncate">Add Daily Budget</span>
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
         {budgetChartsLoading ? (
           <>
-            <Skeleton className="aspect-square w-full max-w-[200px] rounded-full justify-self-center" />
-            <Skeleton className="aspect-square w-full max-w-[200px] rounded-full justify-self-center" />
-            <Skeleton className="aspect-square w-full max-w-[200px] rounded-full justify-self-center" />
+            <Skeleton className="aspect-square w-full max-w-[130px] rounded-full justify-self-center sm:max-w-[120px]" />
+            <Skeleton className="aspect-square w-full max-w-[130px] rounded-full justify-self-center sm:max-w-[120px]" />
+            <Skeleton className="aspect-square w-full max-w-[130px] rounded-full justify-self-center sm:max-w-[120px]" />
           </>
         ) : (
           <>
@@ -162,7 +162,8 @@ export default function MonthlyBudgetPage() {
               value={debit}
               ringColor="text-violet-500 dark:text-violet-400"
               fillRatio={1}
-              subtitle={`${selectedMonthLabel} ${selectedYear}`}
+              subtitle={`${selectedMonthLabel}-${selectedYear}`}
+              size={100}
             />
             <BudgetRoundChart
               label="Total Credit"
@@ -170,6 +171,7 @@ export default function MonthlyBudgetPage() {
               ringColor="text-red-500 dark:text-red-400"
               fillRatio={1}
               subtitle="Expense"
+              size={100}
             />
             <BudgetRoundChart
               label="Balance"
@@ -178,7 +180,8 @@ export default function MonthlyBudgetPage() {
                 balance >= 0 ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400"
               }
               fillRatio={balance >= 0 ? balanceRatio : 1}
-              subtitle="Debit − Credit"
+              subtitle="due"
+              size={100}
             />
           </>
         )}

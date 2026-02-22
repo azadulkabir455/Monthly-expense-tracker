@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { selectExpensesFiltered, removeExpense } from "@/store/slices/expensesSlice";
@@ -24,8 +25,8 @@ import { Pencil, Plus, Trash2, MoreVertical, FolderOpen, FileSpreadsheet } from 
 import { DynamicIcon, type IconName } from "lucide-react/dynamic";
 
 const MONTH_NAMES = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
 /** Default color for amount column when a category is selected */
@@ -45,6 +46,11 @@ export function ExpensesEntriesSection() {
   const [editingRowDay, setEditingRowDay] = useState<number | null>(null);
   const [deleteConfirmDay, setDeleteConfirmDay] = useState<number | null>(null);
   const [openActionDay, setOpenActionDay] = useState<number | null>(null);
+  const [typesPopover, setTypesPopover] = useState<{
+    day: number;
+    types: string[];
+    rect: DOMRect;
+  } | null>(null);
   const [viewBudgetCategoryId, setViewBudgetCategoryId] = useState<string | null>(null);
 
   const years = useMemo(
@@ -104,6 +110,33 @@ export function ExpensesEntriesSection() {
     if (openActionDay != null) document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [openActionDay]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      const target = e.target as HTMLElement;
+      if (!target.closest("[data-expense-entry-types-popover]")) setTypesPopover(null);
+    }
+    if (typesPopover != null) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [typesPopover]);
+
+  useEffect(() => {
+    if (typesPopover == null) return;
+    const day = typesPopover.day;
+    function updateRect() {
+      const el = document.querySelector<HTMLElement>(`[data-types-trigger-day="${day}"]`);
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        setTypesPopover((prev) => (prev ? { ...prev, rect } : null));
+      }
+    }
+    window.addEventListener("scroll", updateRect, true);
+    window.addEventListener("resize", updateRect);
+    return () => {
+      window.removeEventListener("scroll", updateRect, true);
+      window.removeEventListener("resize", updateRect);
+    };
+  }, [typesPopover?.day]);
 
   const allItemsForMonth = useAppSelector((state) =>
     state.expenses.items.filter((e) => e.year === year && e.month === month)
@@ -535,27 +568,70 @@ export function ExpensesEntriesSection() {
                 )}
               >
                 <div className={cn("truncate p-2.5 text-left font-medium whitespace-nowrap", isDark ? "text-slate-200" : "text-slate-800")}>
-                  {day} {monthLabel} {year}
+                  {day} {monthLabel}{" "}
+                  <span className="hidden sm:inline">{year}</span>
                 </div>
                 <div className={cn("truncate p-2.5 text-left text-sm", isDark ? "text-slate-400" : "text-slate-600")}>
                   {dayNote || "—"}
                 </div>
-                <div className="flex flex-nowrap items-center justify-start gap-1 overflow-hidden p-2.5 text-left">
-                  {types.length > 0 ? (
-                    types.map((t) => (
-                      <span
-                        key={t}
-                        className={cn(
-                          "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap",
-                          isDark ? "bg-violet-500/30 text-violet-200" : "bg-violet-100 text-violet-800"
-                        )}
-                      >
-                        {t}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
+                <div
+                  data-expense-entry-types-popover
+                  className="flex flex-nowrap items-center justify-start gap-1 overflow-hidden p-2.5 text-left"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Mobile / narrow: abbreviated "type +N" with popover for all */}
+                  <div className="flex min-w-0 flex-1 items-center gap-1 md:hidden">
+                    {types.length > 0 ? (
+                      types.length > 1 ? (
+                        <button
+                          type="button"
+                          data-types-trigger-day={day}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setTypesPopover((prev) =>
+                              prev?.day === day ? null : { day, types, rect }
+                            );
+                          }}
+                          className={cn(
+                            "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap text-left",
+                            isDark ? "bg-violet-500/30 text-violet-200" : "bg-violet-100 text-violet-800"
+                          )}
+                        >
+                          {types[0]} +{types.length - 1}
+                        </button>
+                      ) : (
+                        <span
+                          className={cn(
+                            "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap",
+                            isDark ? "bg-violet-500/30 text-violet-200" : "bg-violet-100 text-violet-800"
+                          )}
+                        >
+                          {types[0]}
+                        </span>
+                      )
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </div>
+                  {/* Desktop / wide: show all types */}
+                  <div className="hidden flex-nowrap items-center gap-1 overflow-hidden md:flex">
+                    {types.length > 0 ? (
+                      types.map((t) => (
+                        <span
+                          key={t}
+                          className={cn(
+                            "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap",
+                            isDark ? "bg-violet-500/30 text-violet-200" : "bg-violet-100 text-violet-800"
+                          )}
+                        >
+                          {t}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </div>
                 </div>
                 <div className={cn("truncate p-2.5 text-left font-medium", DEFAULT_AMOUNT_COLOR)}>
                   {credit > 0 ? formatMoneyK(credit) : "—"}
@@ -693,6 +769,47 @@ export function ExpensesEntriesSection() {
         message="Are you sure you want to delete these expenses?"
         confirmLabel="Delete"
       />
+
+      {typesPopover != null &&
+        typeof document !== "undefined" &&
+        createPortal(
+          (() => {
+            const rect = typesPopover.rect;
+            const popupMinWidth = 140;
+            const gap = 4;
+            let left = rect.left;
+            if (left + popupMinWidth > window.innerWidth - 8) left = window.innerWidth - popupMinWidth - 8;
+            if (left < 8) left = 8;
+            return (
+          <div
+            role="dialog"
+            aria-label="Types"
+            className={cn(
+              "fixed z-[200] max-h-40 min-w-[140px] overflow-auto rounded-xl border py-2 shadow-lg",
+              isDark ? "border-white/10 bg-violet-950/95" : "border-[#ddd] bg-white"
+            )}
+            style={{
+              position: "fixed",
+              top: rect.bottom + gap,
+              left,
+            }}
+          >
+            {typesPopover.types.map((t) => (
+              <div
+                key={t}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-medium",
+                  isDark ? "text-violet-200" : "text-violet-800"
+                )}
+              >
+                {t}
+              </div>
+            ))}
+          </div>
+            );
+          })(),
+          document.body
+        )}
 
       {editingRowDay != null && (
         <EditDayExpensesModal

@@ -26,7 +26,7 @@ export function BudgetRoundChart({
   ringColor,
   fillRatio = 1,
   subtitle,
-  size = 140,
+  size = 110,
   minimal = false,
 }: BudgetRoundChartProps) {
   const strokeWidth = minimal ? 6 : STROKE;
@@ -40,10 +40,10 @@ export function BudgetRoundChart({
       className={cn(
         "flex flex-col items-center",
         !minimal &&
-          "rounded-2xl border border-[#ddd] bg-white p-5 shadow-card-lg dark:border-white/10 dark:bg-white/5 dark:backdrop-blur-xl"
+          "rounded-xl border border-[#ddd] bg-white p-3 shadow-card-lg dark:border-white/10 dark:bg-white/5 dark:backdrop-blur-xl sm:rounded-2xl sm:p-4"
       )}
     >
-      <p className={cn("text-xs font-medium uppercase tracking-wider text-muted-foreground", minimal ? "mb-1" : "mb-3")}>
+      <p className={cn("text-xs font-medium uppercase tracking-wider text-muted-foreground", minimal ? "mb-1" : "mb-2")}>
         {label}
       </p>
       <div className="relative" style={{ width: size, height: size }}>

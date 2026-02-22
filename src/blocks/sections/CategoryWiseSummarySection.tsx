@@ -24,8 +24,8 @@ import type { ExpenseCategory } from "@/types/expenseCategory";
 import { Skeleton } from "@/blocks/elements/Skeleton";
 
 const MONTH_NAMES = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
 /** Circle color: high monthly spend in this category = red, low = green */
@@ -80,6 +80,7 @@ export function CategoryWiseSummarySection() {
   }, [isClient, currentYear, currentMonth]);
 
   const selectedMonthLabel = MONTH_NAMES[selectedMonth - 1] ?? "Jan";
+  const monthShort = MONTH_NAMES[selectedMonth - 1] ?? "Jan";
 
   /** Per category: debit (budget), credit (current month expense entries total), due = debit - credit, monthTransaction (days with transaction) */
   const categoryCardData = useMemo((): CategoryCardData[] => {
@@ -171,7 +172,7 @@ export function CategoryWiseSummarySection() {
                     Year · Month
                   </p>
                   <p className="text-base font-bold sm:text-lg">{selectedYear}</p>
-                  <p className="text-xs font-medium opacity-90 sm:text-sm">{selectedMonthLabel}</p>
+                  <p className="text-xs font-medium opacity-90 sm:text-sm">{monthShort}</p>
                 </div>
 
                 <div className="flex flex-1 flex-col p-3 sm:p-4">
@@ -222,11 +223,11 @@ export function CategoryWiseSummarySection() {
                     </div>
                   </div>
 
-                  {/* Stats: Debit, Credit, Due, Month transaction – 2×2 */}
+                  {/* Stats: month 3 letters, month 3 letters, Due, month 3 letters – 2×2 */}
                   <div className="mt-2 grid grid-cols-2 gap-1.5 sm:mt-3 sm:gap-2">
                     <div className="rounded-lg bg-white/15 px-1.5 py-1 sm:px-2 sm:py-1.5">
                       <p className="truncate text-[10px] font-medium capitalize tracking-wider opacity-90 sm:text-xs">
-                        Debit
+                        {monthShort}
                       </p>
                       <p className="truncate text-xs font-semibold sm:text-sm">
                         {formatMoneyK(item.debit)}
@@ -234,7 +235,7 @@ export function CategoryWiseSummarySection() {
                     </div>
                     <div className="rounded-lg bg-white/15 px-1.5 py-1 sm:px-2 sm:py-1.5">
                       <p className="truncate text-[10px] font-medium capitalize tracking-wider opacity-90 sm:text-xs">
-                        Credit
+                        {monthShort}
                       </p>
                       <p className="truncate text-xs font-semibold sm:text-sm">
                         {formatMoneyK(item.credit)}
@@ -250,7 +251,7 @@ export function CategoryWiseSummarySection() {
                     </div>
                     <div className="rounded-lg bg-white/15 px-1.5 py-1 sm:px-2 sm:py-1.5">
                       <p className="truncate text-[10px] font-medium capitalize tracking-wider opacity-90 sm:text-xs">
-                        Month transaction
+                        {monthShort}
                       </p>
                       <p className="truncate text-xs font-semibold sm:text-sm">
                         {item.monthTransaction}

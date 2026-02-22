@@ -49,7 +49,7 @@ export function LoginFormSection() {
     if (savedEmail) {
       setEmail(savedEmail);
       setRememberMe(true);
-      if (savedPassword) setPassword(savedPassword);
+      setPassword(savedPassword ?? "");
     }
   }, []);
 
