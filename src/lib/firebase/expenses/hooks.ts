@@ -1,43 +1,43 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useDispatch } from "react-redux";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase/config";
-import type { WishCategory } from "@/types/wishlist";
-import type { WishPriorityType } from "@/types/wishlist";
+import type { ExpenseCategory, ExpenseType } from "@/types/expenseCategory";
+import type { Expense } from "@/types/expense";
+import { setExpenseItems } from "@/store/slices/expensesSlice";
 import {
-  subscribeCategories,
-  addCategory as addCategoryApi,
-  updateCategory as updateCategoryApi,
-  deleteCategory as deleteCategoryApi,
-} from "@/lib/firebase/wishlist/categories";
+  subscribeExpenseCategories,
+  addExpenseCategory as addApi,
+  updateExpenseCategory as updateApi,
+  deleteExpenseCategory as deleteApi,
+} from "@/lib/firebase/expenses/categories";
 import {
-  subscribeTypes,
-  addType as addTypeApi,
-  updateType as updateTypeApi,
-  deleteType as deleteTypeApi,
-} from "@/lib/firebase/wishlist/types";
+  subscribeExpenseTypes,
+  addExpenseType as addTypeApi,
+  updateExpenseType as updateTypeApi,
+  deleteExpenseType as deleteTypeApi,
+} from "@/lib/firebase/expenses/types";
 import {
-  subscribeItems,
-  addItem as addItemApi,
-  updateItem as updateItemApi,
-  deleteItem as deleteItemApi,
-  deleteItems as deleteItemsApi,
-} from "@/lib/firebase/wishlist/items";
-import type { WishItem } from "@/types/wishlist";
+  subscribeExpenseEntries,
+  addExpenseEntry as addEntryApi,
+  updateExpenseEntry as updateEntryApi,
+  deleteExpenseEntry as deleteEntryApi,
+} from "@/lib/firebase/expenses/entries";
 
-export function useWishlistCategories() {
+export function useExpenseCategories() {
   const [uid, setUid] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [categories, setCategories] = useState<WishCategory[]>([]);
+  const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubAuth = onAuthStateChanged(auth, (user) => {
+    const unsub = onAuthStateChanged(auth, (user) => {
       setUid(user?.uid ?? null);
       setAuthChecked(true);
     });
-    return () => unsubAuth();
+    return () => unsub();
   }, []);
 
   useEffect(() => {
@@ -48,7 +48,7 @@ export function useWishlistCategories() {
       return;
     }
     setLoading(true);
-    const unsub = subscribeCategories(
+    const unsub = subscribeExpenseCategories(
       uid,
       (list) => {
         setCategories(list);
@@ -66,19 +66,28 @@ export function useWishlistCategories() {
     return user.uid;
   };
 
-  const addCategory = async (name: string) => {
+  const addCategory = async (
+    name: string,
+    icon: string,
+    gradientPreset: string
+  ) => {
     const currentUid = await ensureAuth();
-    return addCategoryApi(currentUid, { name });
+    return addApi(currentUid, { name, icon, gradientPreset });
   };
 
-  const updateCategory = async (id: string, name: string) => {
+  const updateCategory = async (
+    id: string,
+    name: string,
+    icon: string,
+    gradientPreset: string
+  ) => {
     const currentUid = await ensureAuth();
-    return updateCategoryApi(currentUid, id, { name });
+    return updateApi(currentUid, id, { name, icon, gradientPreset });
   };
 
   const deleteCategory = async (id: string) => {
     const currentUid = await ensureAuth();
-    return deleteCategoryApi(currentUid, id);
+    return deleteApi(currentUid, id);
   };
 
   return {
@@ -91,18 +100,18 @@ export function useWishlistCategories() {
   };
 }
 
-export function useWishlistTypes() {
+export function useExpenseTypes() {
   const [uid, setUid] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [types, setTypes] = useState<WishPriorityType[]>([]);
+  const [types, setTypes] = useState<ExpenseType[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubAuth = onAuthStateChanged(auth, (user) => {
+    const unsub = onAuthStateChanged(auth, (user) => {
       setUid(user?.uid ?? null);
       setAuthChecked(true);
     });
-    return () => unsubAuth();
+    return () => unsub();
   }, []);
 
   useEffect(() => {
@@ -113,7 +122,7 @@ export function useWishlistTypes() {
       return;
     }
     setLoading(true);
-    const unsub = subscribeTypes(
+    const unsub = subscribeExpenseTypes(
       uid,
       (list) => {
         setTypes(list);
@@ -131,14 +140,14 @@ export function useWishlistTypes() {
     return user.uid;
   };
 
-  const addType = async (name: string, order: number) => {
+  const addType = async (data: Omit<ExpenseType, "id">) => {
     const currentUid = await ensureAuth();
-    return addTypeApi(currentUid, { name, order });
+    return addTypeApi(currentUid, data);
   };
 
-  const updateType = async (id: string, name: string, order: number) => {
+  const updateType = async (id: string, data: Partial<Omit<ExpenseType, "id">>) => {
     const currentUid = await ensureAuth();
-    return updateTypeApi(currentUid, id, { name, order });
+    return updateTypeApi(currentUid, id, data);
   };
 
   const deleteType = async (id: string) => {
@@ -156,38 +165,29 @@ export function useWishlistTypes() {
   };
 }
 
-export function useWishlistItems(priorityOrder: { id: string; order: number }[] = []) {
+export function useExpenseEntries() {
+  const dispatch = useDispatch();
   const [uid, setUid] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [items, setItems] = useState<WishItem[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubAuth = onAuthStateChanged(auth, (user) => {
+    const unsub = onAuthStateChanged(auth, (user) => {
       setUid(user?.uid ?? null);
       setAuthChecked(true);
     });
-    return () => unsubAuth();
+    return () => unsub();
   }, []);
 
   useEffect(() => {
     if (!authChecked) return;
-    if (!uid) {
-      setItems([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    const unsub = subscribeItems(
+    if (!uid) return;
+    const unsub = subscribeExpenseEntries(
       uid,
-      (list) => {
-        setItems(list);
-        setLoading(false);
-      },
-      () => setLoading(false)
+      (list) => dispatch(setExpenseItems(list)),
+      () => {}
     );
     return () => unsub();
-  }, [uid, authChecked]);
+  }, [uid, authChecked, dispatch]);
 
   const ensureAuth = async (): Promise<string> => {
     const user = auth.currentUser;
@@ -196,38 +196,28 @@ export function useWishlistItems(priorityOrder: { id: string; order: number }[] 
     return user.uid;
   };
 
-  const orderMap = new Map(priorityOrder.map((p) => [p.id, p.order]));
-  const sortedItems = [...items].sort(
-    (a, b) => (orderMap.get(a.priorityId) ?? 99) - (orderMap.get(b.priorityId) ?? 99)
-  );
-
-  const addItem = async (data: Omit<WishItem, "id">) => {
+  const addEntry = async (data: Omit<Expense, "id" | "createdAt">) => {
     const currentUid = await ensureAuth();
-    return addItemApi(currentUid, data);
+    return addEntryApi(currentUid, data);
   };
 
-  const updateItem = async (id: string, data: Partial<Omit<WishItem, "id">>) => {
+  const updateEntry = async (
+    id: string,
+    data: Partial<Pick<Expense, "amount" | "type" | "category" | "expenseTypeId" | "description" | "date" | "month" | "year">>
+  ) => {
     const currentUid = await ensureAuth();
-    return updateItemApi(currentUid, id, data);
+    return updateEntryApi(currentUid, id, data);
   };
 
-  const deleteItem = async (id: string) => {
+  const removeEntry = async (id: string) => {
     const currentUid = await ensureAuth();
-    return deleteItemApi(currentUid, id);
-  };
-
-  const deleteItems = async (ids: string[]) => {
-    const currentUid = await ensureAuth();
-    return deleteItemsApi(currentUid, ids);
+    return deleteEntryApi(currentUid, id);
   };
 
   return {
-    items: sortedItems,
-    loading,
-    addItem,
-    updateItem,
-    deleteItem,
-    deleteItems,
+    addEntry,
+    updateEntry,
+    removeEntry,
     isAuthenticated: !!uid,
   };
 }

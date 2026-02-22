@@ -3,54 +3,33 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
-import {
-  selectExpensesFiltered,
-  selectExpenseTypes,
-  removeExpense,
-} from "@/store/slices/expensesSlice";
-import { MAIN_EXPENSE_CATEGORIES } from "@/types/expense";
+import { selectExpensesFiltered, removeExpense } from "@/store/slices/expensesSlice";
+import { useExpenseCategories, useExpenseTypes, useExpenseEntries } from "@/lib/firebase/expenses";
+import { useBudgetDebit, useBudgetItems } from "@/lib/firebase/budget";
+import { Button } from "@/blocks/elements/Button";
 import { MonthYearDatePicker } from "@/blocks/components/MonthYearDatePicker";
 import { SelectDropdown, type SelectOption } from "@/blocks/components/shared/SelectDropdown";
 import { ConfirmModal } from "@/blocks/components/shared/ConfirmModal";
 import { EditDayExpensesModal } from "@/blocks/components/EditDayExpensesModal";
+import { ViewBudgetDetailsModal } from "@/blocks/components/ViewBudgetDetailsModal";
 import { formatMoneyK } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
 import { useClientDate } from "@/hooks/useClientDate";
 import { useStartYear } from "@/hooks/useStartYear";
-import type { LucideIcon } from "lucide-react";
-import { Pencil, Plus, Trash2, MoreVertical, ShoppingCart, Briefcase, BookOpen, Pill, FolderOpen } from "lucide-react";
+import { GRADIENT_PRESETS } from "@/types/expenseCategory";
+import { Skeleton } from "@/blocks/elements/Skeleton";
+import { toast } from "sonner";
+import { Pencil, Plus, Trash2, MoreVertical, FolderOpen, FileSpreadsheet } from "lucide-react";
+import { DynamicIcon, type IconName } from "lucide-react/dynamic";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
 
-const CATEGORY_ICONS: Record<string, LucideIcon> = {
-  basar: ShoppingCart,
-  bebosar: Briefcase,
-  study: BookOpen,
-  medicine: Pill,
-  other: FolderOpen,
-};
-
-/** Gradient backgrounds matching the summary cards */
-const CATEGORY_GRADIENTS: Record<string, string> = {
-  basar: "bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-700",
-  bebosar: "bg-gradient-to-br from-blue-600 via-cyan-600 to-teal-600",
-  study: "bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500",
-  medicine: "bg-gradient-to-br from-rose-500 via-pink-500 to-fuchsia-600",
-  other: "bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700",
-};
-
-/** Category colors for Debit/Credit in table */
-const CATEGORY_COLORS: Record<string, { debit: string; credit: string }> = {
-  basar: { debit: "text-emerald-600 dark:text-emerald-400", credit: "text-emerald-700 dark:text-emerald-300" },
-  bebosar: { debit: "text-blue-600 dark:text-blue-400", credit: "text-blue-700 dark:text-blue-300" },
-  study: { debit: "text-amber-600 dark:text-amber-400", credit: "text-amber-700 dark:text-amber-300" },
-  medicine: { debit: "text-rose-600 dark:text-rose-400", credit: "text-rose-700 dark:text-rose-300" },
-  other: { debit: "text-violet-600 dark:text-violet-400", credit: "text-violet-700 dark:text-violet-300" },
-};
+/** Default color for amount column when a category is selected */
+const DEFAULT_AMOUNT_COLOR = "text-violet-600 dark:text-violet-400";
 
 export function ExpensesEntriesSection() {
   const dispatch = useAppDispatch();
@@ -61,28 +40,39 @@ export function ExpensesEntriesSection() {
   const startYear = useStartYear();
 
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(
-    MAIN_EXPENSE_CATEGORIES[0]?.id ?? "basar"
-  );
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [selectedTypeId, setSelectedTypeId] = useState<string>("");
   const [editingRowDay, setEditingRowDay] = useState<number | null>(null);
   const [deleteConfirmDay, setDeleteConfirmDay] = useState<number | null>(null);
   const [openActionDay, setOpenActionDay] = useState<number | null>(null);
+  const [viewBudgetCategoryId, setViewBudgetCategoryId] = useState<string | null>(null);
 
   const years = useMemo(
     () => Array.from({ length: currentYear - startYear + 1 }, (_, i) => currentYear - i),
     [currentYear, startYear]
   );
 
-  const expenseTypes = useAppSelector(selectExpenseTypes);
+  const { categories: expenseCategories, loading: categoriesLoading } = useExpenseCategories();
+  const { types: expenseTypes, loading: typesLoading } = useExpenseTypes();
+  const { addEntry, updateEntry, removeEntry, isAuthenticated: hasFirestoreExpenses } = useExpenseEntries();
   const categoryTypes = useMemo(
-    () => expenseTypes.filter((t) => t.mainCategoryId === selectedCategoryId),
+    () =>
+      selectedCategoryId
+        ? expenseTypes.filter((t) => t.categoryId === selectedCategoryId)
+        : expenseTypes,
     [expenseTypes, selectedCategoryId]
   );
   const typeOptions: SelectOption[] = [
     { value: "", label: "All Types" },
     ...categoryTypes.map((t) => ({ value: t.id, label: t.name })),
   ];
+  const typeIdsForSelectedCategory = useMemo(
+    () =>
+      selectedCategoryId
+        ? expenseTypes.filter((t) => t.categoryId === selectedCategoryId).map((t) => t.id)
+        : null,
+    [expenseTypes, selectedCategoryId]
+  );
 
   const year = selectedDate.getFullYear();
   const month = selectedDate.getMonth() + 1;
@@ -97,6 +87,15 @@ export function ExpensesEntriesSection() {
     setSelectedTypeId("");
   }, [selectedCategoryId]);
 
+  /** Default to first category; keep selection when switching date if still in list */
+  useEffect(() => {
+    if (expenseCategories.length === 0) return;
+    const firstId = expenseCategories[0]?.id ?? "";
+    setSelectedCategoryId((prev) =>
+      prev && expenseCategories.some((c) => c.id === prev) ? prev : firstId
+    );
+  }, [expenseCategories]);
+
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       const target = e.target as HTMLElement;
@@ -110,23 +109,76 @@ export function ExpensesEntriesSection() {
     state.expenses.items.filter((e) => e.year === year && e.month === month)
   );
 
+  const baseExpensesForMonth = useAppSelector((state) =>
+    selectExpensesFiltered(state, year, month, undefined, undefined, selectedTypeId || undefined)
+  );
+
+  const allExpensesForMonth = useMemo(() => {
+    if (!selectedCategoryId || !typeIdsForSelectedCategory?.length)
+      return baseExpensesForMonth;
+    return baseExpensesForMonth.filter(
+      (e) => e.expenseTypeId && typeIdsForSelectedCategory.includes(e.expenseTypeId)
+    );
+  }, [baseExpensesForMonth, selectedCategoryId, typeIdsForSelectedCategory]);
+
+  const { debit: budgetDebit, loading: budgetDebitLoading } = useBudgetDebit(year, month);
+  const { items: budgetItems, loading: budgetItemsLoading } = useBudgetItems(year, month);
+
+  const entriesLoading =
+    categoriesLoading || typesLoading || budgetDebitLoading || budgetItemsLoading;
+
   const categorySummary = useMemo(() => {
     const byCat = new Map<string, { debit: number; credit: number }>();
-    for (const cat of MAIN_EXPENSE_CATEGORIES) {
-      byCat.set(cat.id, { debit: 0, credit: 0 });
-    }
-    for (const e of allItemsForMonth) {
-      const key = MAIN_EXPENSE_CATEGORIES.some((c) => c.id === e.category) ? e.category : "other";
-      const cur = byCat.get(key)!;
-      if (e.type === "income" && e.amount > 0) cur.debit += e.amount;
-      else if (e.type === "expense" && e.amount > 0) cur.credit += e.amount;
+    const totalDebit = budgetDebit ?? 0;
+    for (const cat of expenseCategories) {
+      const credit = budgetItems
+        .filter((b) => b.categoryId === cat.id)
+        .reduce((s, b) => s + b.amount, 0);
+      byCat.set(cat.id, { debit: totalDebit, credit });
     }
     return byCat;
-  }, [allItemsForMonth]);
+  }, [expenseCategories, budgetItems, budgetDebit]);
 
-  const allExpensesForMonth = useAppSelector((state) =>
-    selectExpensesFiltered(state, year, month, undefined, selectedCategoryId, selectedTypeId || undefined)
-  );
+  /** Per category: budget total (from budget list), expense this month, remaining = budget - expense */
+  const categoryBudgetRemaining = useMemo(() => {
+    const map = new Map<string, { budgetTotal: number; totalExpense: number; remaining: number }>();
+    for (const cat of expenseCategories) {
+      const budgetTotal = budgetItems
+        .filter((b) => b.categoryId === cat.id)
+        .reduce((s, b) => s + b.amount, 0);
+      const typeIds = expenseTypes
+        .filter((t) => t.categoryId === cat.id)
+        .map((t) => t.id);
+      const totalExpense =
+        typeIds.length === 0
+          ? 0
+          : allItemsForMonth
+              .filter(
+                (e) =>
+                  e.type === "expense" &&
+                  e.expenseTypeId &&
+                  typeIds.includes(e.expenseTypeId)
+              )
+              .reduce((s, e) => s + e.amount, 0);
+      const remaining = budgetTotal - totalExpense;
+      map.set(cat.id, { budgetTotal, totalExpense, remaining });
+    }
+    return map;
+  }, [expenseCategories, budgetItems, expenseTypes, allItemsForMonth]);
+
+  /** Per expense-type total for the category shown in budget modal (for Month expense / Due columns) */
+  const expenseByTypeIdForModal = useMemo(() => {
+    if (!viewBudgetCategoryId) return {} as Record<string, number>;
+    const typeIds = expenseTypes
+      .filter((t) => t.categoryId === viewBudgetCategoryId)
+      .map((t) => t.id);
+    const record: Record<string, number> = {};
+    for (const e of allItemsForMonth) {
+      if (e.type !== "expense" || !e.expenseTypeId || !typeIds.includes(e.expenseTypeId)) continue;
+      record[e.expenseTypeId] = (record[e.expenseTypeId] ?? 0) + e.amount;
+    }
+    return record;
+  }, [viewBudgetCategoryId, expenseTypes, allItemsForMonth]);
 
   const tableRows = useMemo(() => {
     const daysInMonth = new Date(year, month, 0).getDate();
@@ -148,11 +200,14 @@ export function ExpensesEntriesSection() {
         if (t) cur.types.add(t.name);
       }
     }
-    for (const e of allExpensesForMonth) {
-      if (e.type !== "expense" || e.amount !== 0 || e.expenseTypeId) continue;
+    // Day notes are per category: show only the note for the selected category for each day (if any)
+    const noteCategory = selectedCategoryId || "other";
+    for (const e of baseExpensesForMonth) {
+      if (e.type !== "expense" || e.amount !== 0 || e.expenseTypeId || e.category !== noteCategory) continue;
+      const desc = (e.description ?? "").trim();
       const day = new Date(e.date).getDate();
       const cur = byDay.get(day);
-      if (cur) cur.dayNote = e.description ?? "";
+      if (cur) cur.dayNote = desc === "hello dear" ? "" : desc;
     }
     for (const e of allItemsForMonth) {
       if (e.type !== "income" || e.amount === 0) continue;
@@ -165,7 +220,56 @@ export function ExpensesEntriesSection() {
       const { types, debit, credit, dayNote } = byDay.get(day)!;
       return { day, types: Array.from(types), debit, credit, dayNote };
     });
-  }, [allExpensesForMonth, allItemsForMonth, year, month, expenseTypes]);
+  }, [allExpensesForMonth, baseExpensesForMonth, allItemsForMonth, year, month, expenseTypes, selectedCategoryId]);
+
+  const handleDownloadMonthExpenseExcel = () => {
+    // Use same list as table (current view); exclude note-only rows (amount 0, no type)
+    const expenses = [...allExpensesForMonth]
+      .filter((e) => e.type === "expense" && (e.amount !== 0 || !!e.expenseTypeId))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const escape = (v: string) => {
+      const s = String(v ?? "");
+      if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    };
+    // Column order: Date, Type, Item Name, Amount — date & type only on first row of each group (no repeat)
+    const header = "Date,Type,Item Name,Amount";
+    let lastDate = "";
+    let lastType = "";
+    const rows = expenses.map((e) => {
+      const dateStr = e.date
+        ? (() => {
+            const d = new Date(e.date);
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, "0");
+            const day = String(d.getDate()).padStart(2, "0");
+            return `${y}-${m}-${day}`;
+          })()
+        : "";
+      const typeName = e.expenseTypeId
+        ? (expenseTypes.find((t) => t.id === e.expenseTypeId)?.name ?? "")
+        : "";
+      const itemName = (e.description ?? "").trim();
+      const amount = Number(e.amount) ?? 0;
+      const showDate = dateStr !== lastDate || typeName !== lastType;
+      if (showDate) {
+        lastDate = dateStr;
+        lastType = typeName;
+      }
+      const dateCol = showDate ? escape(dateStr) : "";
+      const typeCol = showDate ? escape(typeName) : "";
+      return [dateCol, typeCol, escape(itemName), amount].join(",");
+    });
+    const csv = [header, ...rows].join("\r\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `monthly-expense-${MONTH_NAMES[month - 1]}-${year}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Download started.");
+  };
 
   const handleEditRow = (day: number) => {
     setEditingRowDay(day);
@@ -175,32 +279,48 @@ export function ExpensesEntriesSection() {
     setDeleteConfirmDay(day);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (deleteConfirmDay == null) return;
-    const toDelete = allExpensesForMonth.filter((e) => {
-      if (e.type !== "expense") return false;
-      const c = MAIN_EXPENSE_CATEGORIES.some((c2) => c2.id === e.category)
-        ? e.category
-        : "other";
-      if (c !== selectedCategoryId) return false;
-      if (selectedTypeId && e.expenseTypeId !== selectedTypeId) return false;
-      return new Date(e.date).getDate() === deleteConfirmDay;
-    });
-    toDelete.forEach((e) => dispatch(removeExpense(e.id)));
+    const toDelete = allExpensesForMonth.filter(
+      (e) => new Date(e.date).getDate() === deleteConfirmDay
+    );
+    try {
+      if (hasFirestoreExpenses) {
+        for (const e of toDelete) {
+          await removeEntry(e.id);
+          dispatch(removeExpense(e.id));
+        }
+        toast.success("Day expenses deleted.");
+      } else {
+        toDelete.forEach((e) => dispatch(removeExpense(e.id)));
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete day expenses.");
+      return;
+    }
     setDeleteConfirmDay(null);
   };
 
-  const expensesForEditingDay = useAppSelector((state) =>
-    selectExpensesFiltered(state, year, month, editingRowDay ?? undefined, selectedCategoryId, selectedTypeId || undefined)
+  const baseExpensesForEditingDay = useAppSelector((state) =>
+    selectExpensesFiltered(state, year, month, editingRowDay ?? undefined, undefined, selectedTypeId || undefined)
   );
+
+  const expensesForEditingDay = useMemo(() => {
+    if (!selectedCategoryId || !typeIdsForSelectedCategory?.length)
+      return baseExpensesForEditingDay;
+    return baseExpensesForEditingDay.filter(
+      (e) => e.expenseTypeId && typeIdsForSelectedCategory.includes(e.expenseTypeId)
+    );
+  }, [baseExpensesForEditingDay, selectedCategoryId, typeIdsForSelectedCategory]);
 
   const allExpensesForEditingDay = useAppSelector((state) =>
     selectExpensesFiltered(state, year, month, editingRowDay ?? undefined)
   );
 
   const monthLabel = MONTH_NAMES[month - 1] ?? "";
-  const catColors = CATEGORY_COLORS[selectedCategoryId] ?? CATEGORY_COLORS.other;
-  const selectedCategoryLabel = MAIN_EXPENSE_CATEGORIES.find((c) => c.id === selectedCategoryId)?.label ?? "Grocery";
+  const selectedCategoryLabel = selectedCategoryId
+    ? (expenseCategories.find((c) => c.id === selectedCategoryId)?.name ?? "—")
+    : "All";
 
   return (
     <motion.div
@@ -243,30 +363,50 @@ export function ExpensesEntriesSection() {
         </div>
       </div>
 
-      {/* Category cards - gradient bg, title, debit & credit */}
+      {/* Category cards: Firestore categories – name on top, debit/credit */}
+      {entriesLoading ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Skeleton key={i} className="aspect-[4/3] min-h-[100px] w-full rounded-xl sm:rounded-2xl" />
+          ))}
+        </div>
+      ) : (
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-        {MAIN_EXPENSE_CATEGORIES.map((cat) => {
-          const Icon = CATEGORY_ICONS[cat.id] ?? FolderOpen;
-          const gradient = CATEGORY_GRADIENTS[cat.id] ?? CATEGORY_GRADIENTS.other;
+        {expenseCategories.map((cat) => {
+          const preset = GRADIENT_PRESETS[cat.gradientPreset] ?? GRADIENT_PRESETS.violet;
+          const gradientStyle = {
+            background: `linear-gradient(to bottom right, ${preset.fromColor}, ${preset.toColor})`,
+          };
           const summary = categorySummary.get(cat.id) ?? { debit: 0, credit: 0 };
           const isSelected = selectedCategoryId === cat.id;
           return (
-            <button
+            <div
               key={cat.id}
-              type="button"
-              onClick={() => setSelectedCategoryId(cat.id)}
               className={cn(
-                "flex min-w-0 flex-col overflow-hidden rounded-xl text-left text-white shadow-float transition-all sm:rounded-2xl",
-                gradient,
+                "flex min-w-0 flex-col overflow-hidden rounded-xl text-white shadow-float transition-all sm:rounded-2xl",
+                "ring-2 ring-white/20 ring-offset-2 ring-offset-slate-900",
                 isSelected && "ring-2 ring-white ring-offset-2 ring-offset-slate-100 dark:ring-offset-slate-900"
               )}
+              style={gradientStyle}
             >
               <div className="flex flex-1 flex-col p-3 sm:p-4">
-                <div className="mb-2 flex items-center gap-2">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/20">
-                    <Icon className="h-4 w-4" strokeWidth={2} />
-                  </span>
-                  <p className="truncate text-sm font-semibold capitalize">{cat.label}</p>
+                {/* Row 1: Category text (icon + name) left, Baki + button right */}
+                <div className="mb-2 flex w-full items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategoryId(cat.id)}
+                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                  >
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/20">
+                      <DynamicIcon
+                        name={(cat.icon as IconName) || "folder"}
+                        fallback={() => <FolderOpen className="h-4 w-4" strokeWidth={2} />}
+                        className="h-4 w-4"
+                        strokeWidth={2}
+                      />
+                    </span>
+                    <p className="truncate text-sm font-semibold capitalize">{cat.name}</p>
+                  </button>
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
                   <div className="rounded-lg bg-white/15 px-2 py-1.5">
@@ -274,21 +414,84 @@ export function ExpensesEntriesSection() {
                     <p className="truncate text-xs font-semibold">{formatMoneyK(summary.debit)}</p>
                   </div>
                   <div className="rounded-lg bg-white/15 px-2 py-1.5">
-                    <p className="text-[10px] font-medium uppercase tracking-wider opacity-90">Credit</p>
+                    <p className="text-[10px] font-medium uppercase tracking-wider opacity-90">Budget</p>
                     <p className="truncate text-xs font-semibold">{formatMoneyK(summary.credit)}</p>
                   </div>
                 </div>
               </div>
-            </button>
+            </div>
           );
         })}
       </div>
+      )}
 
-      {/* Selected category label + Table */}
-      <div className="space-y-2">
+      {entriesLoading ? (
+        <Skeleton className="h-5 w-48" />
+      ) : (
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className={cn("text-sm font-medium", isDark ? "text-slate-300" : "text-slate-600")}>
           Category: <span className="font-semibold text-foreground">{selectedCategoryLabel}</span>
         </p>
+        {selectedCategoryId && (() => {
+          const selectedCat = expenseCategories.find((c) => c.id === selectedCategoryId);
+          const preset = selectedCat ? (GRADIENT_PRESETS[selectedCat.gradientPreset as keyof typeof GRADIENT_PRESETS] ?? GRADIENT_PRESETS.violet) : GRADIENT_PRESETS.violet;
+          return (
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={handleDownloadMonthExpenseExcel}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-0 text-white transition hover:opacity-90"
+                style={{
+                  background: `linear-gradient(to bottom right, ${preset.fromColor}, ${preset.toColor})`,
+                }}
+                aria-label="Download monthly expense (Excel/CSV)"
+                title="Download as Excel"
+              >
+                <FileSpreadsheet className="h-5 w-5" />
+              </button>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                className="shrink-0 border-0 text-white hover:opacity-90"
+                style={{
+                  background: `linear-gradient(to bottom right, ${preset.fromColor}, ${preset.toColor})`,
+                }}
+                onClick={() => setViewBudgetCategoryId(selectedCategoryId)}
+              >
+                View budget details
+              </Button>
+            </div>
+          );
+        })()}
+      </div>
+      )}
+
+      <div className="space-y-2">
+        {entriesLoading ? (
+          <div className="min-w-0 overflow-hidden rounded-xl border border-[#ddd] dark:border-white/10">
+            <div className={cn("border-b p-2.5", isDark ? "border-white/10 bg-white/5" : "border-[#ddd] bg-slate-50")}>
+              <div className="flex gap-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-14" />
+                <Skeleton className="h-4 w-14" />
+              </div>
+            </div>
+            <div className={cn("divide-y p-2.5", isDark ? "divide-white/10" : "divide-[#ddd]")}>
+              {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+                <div key={i} className="flex gap-2 py-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 flex-1 max-w-[120px]" />
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-4 w-14" />
+                  <Skeleton className="h-4 w-12" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
         <div className="min-w-0 overflow-x-auto rounded-xl">
         <div
           className={cn(
@@ -306,7 +509,7 @@ export function ExpensesEntriesSection() {
           <div className={cn("p-2.5 text-left", isDark ? "text-slate-300" : "text-slate-700")}>Date</div>
           <div className={cn("p-2.5 text-left", isDark ? "text-slate-300" : "text-slate-700")}>Note</div>
           <div className={cn("p-2.5 text-left", isDark ? "text-slate-300" : "text-slate-700")}>Type</div>
-          <div className={cn("p-2.5 text-left", catColors.credit)}>Amount</div>
+          <div className={cn("p-2.5 text-left", DEFAULT_AMOUNT_COLOR)}>Amount</div>
           <div className={cn("p-2.5 text-left", isDark ? "text-slate-300" : "text-slate-700")}>Action</div>
         </div>
 
@@ -316,8 +519,17 @@ export function ExpensesEntriesSection() {
             return (
               <div
                 key={day}
+                role="button"
+                tabIndex={0}
+                onClick={() => handleEditRow(day)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleEditRow(day);
+                  }
+                }}
                 className={cn(
-                  "relative grid gap-0 items-center overflow-visible p-2.5 text-sm",
+                  "relative grid gap-0 cursor-pointer items-center overflow-visible p-2.5 text-sm",
                   "grid-cols-[minmax(85px,1fr)_minmax(120px,2.5fr)_minmax(100px,2fr)_minmax(70px,0.8fr)_minmax(70px,0.7fr)]",
                   isDark ? "hover:bg-white/5" : "hover:bg-slate-50/80"
                 )}
@@ -345,7 +557,7 @@ export function ExpensesEntriesSection() {
                     <span className="text-muted-foreground">—</span>
                   )}
                 </div>
-                <div className={cn("truncate p-2.5 text-left font-medium", catColors.credit)}>
+                <div className={cn("truncate p-2.5 text-left font-medium", DEFAULT_AMOUNT_COLOR)}>
                   {credit > 0 ? formatMoneyK(credit) : "—"}
                 </div>
                 <div data-expense-entry-action-menu className="relative flex items-center justify-start gap-1 p-2.5 text-left">
@@ -355,7 +567,10 @@ export function ExpensesEntriesSection() {
                       <>
                         <button
                           type="button"
-                          onClick={() => setOpenActionDay(openActionDay === day ? null : day)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenActionDay(openActionDay === day ? null : day);
+                          }}
                           className={cn(
                             "rounded-lg p-2 transition",
                             isDark ? "text-slate-400 hover:bg-white/10 hover:text-white" : "text-slate-500 hover:bg-slate-200 hover:text-slate-800"
@@ -366,6 +581,7 @@ export function ExpensesEntriesSection() {
                         </button>
                         {openActionDay === day && (
                       <div
+                        onClick={(e) => e.stopPropagation()}
                         className={cn(
                           "absolute right-0 top-full z-[100] mt-1 min-w-[120px] overflow-hidden rounded-xl border py-1 shadow-lg",
                           isDark ? "border-white/10 bg-violet-950/95" : "border-[#ddd] bg-white"
@@ -388,7 +604,8 @@ export function ExpensesEntriesSection() {
                         {hasData && (
                           <button
                             type="button"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               handleDeleteRow(day);
                               setOpenActionDay(null);
                             }}
@@ -419,7 +636,7 @@ export function ExpensesEntriesSection() {
                     )}
                   </div>
                   {/* Desktop: edit + delete buttons */}
-                  <div className="hidden sm:flex sm:items-center sm:gap-1">
+                  <div className="hidden sm:flex sm:items-center sm:gap-1" onClick={(e) => e.stopPropagation()}>
                     <button
                       type="button"
                       onClick={() => handleEditRow(day)}
@@ -442,7 +659,10 @@ export function ExpensesEntriesSection() {
                     {hasData && (
                       <button
                         type="button"
-                        onClick={() => handleDeleteRow(day)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteRow(day);
+                        }}
                         className={cn(
                           "rounded p-1.5 transition",
                           isDark
@@ -462,6 +682,7 @@ export function ExpensesEntriesSection() {
         </div>
         </div>
         </div>
+        )}
       </div>
 
       <ConfirmModal
@@ -485,6 +706,19 @@ export function ExpensesEntriesSection() {
           expensesForDay={expensesForEditingDay}
           allExpensesForDay={allExpensesForEditingDay}
           categoryTypes={categoryTypes.map((t) => ({ id: t.id, name: t.name, mainCategoryId: t.mainCategoryId }))}
+          firestoreApi={hasFirestoreExpenses ? { addEntry, updateEntry, removeEntry } : undefined}
+        />
+      )}
+
+      {viewBudgetCategoryId != null && (
+        <ViewBudgetDetailsModal
+          open={true}
+          onClose={() => setViewBudgetCategoryId(null)}
+          categoryName={expenseCategories.find((c) => c.id === viewBudgetCategoryId)?.name ?? ""}
+          year={year}
+          month={month}
+          items={budgetItems.filter((b) => b.categoryId === viewBudgetCategoryId)}
+          expenseByTypeId={expenseByTypeIdForModal}
         />
       )}
     </motion.div>

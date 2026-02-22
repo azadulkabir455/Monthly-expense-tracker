@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { useAppDispatch } from "@/store/hooks";
-import { updateBudgetItem } from "@/store/slices/expensesSlice";
+import { toast } from "sonner";
 import type { BudgetItem } from "@/types/budget";
+import { useExpenseCategories, useExpenseTypes } from "@/lib/firebase/expenses";
+import { getWishlistErrorMessage } from "@/lib/firebase/wishlist/errors";
+import { SelectDropdown, type SelectOption } from "@/blocks/components/shared/SelectDropdown";
 import {
   Card,
   CardContent,
@@ -24,21 +26,38 @@ interface EditBudgetItemModalProps {
   item: BudgetItem | null;
   open: boolean;
   onClose: () => void;
+  onUpdate: (item: BudgetItem) => Promise<void>;
 }
 
-export function EditBudgetItemModal({ item, open, onClose }: EditBudgetItemModalProps) {
-  const dispatch = useAppDispatch();
+export function EditBudgetItemModal({ item, open, onClose, onUpdate }: EditBudgetItemModalProps) {
+  const { categories } = useExpenseCategories();
+  const { types: expenseTypes } = useExpenseTypes();
   const { theme } = useThemeContext();
   const isDark = theme === "dark";
-  const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
+  const [expenseTypeId, setExpenseTypeId] = useState("");
+
+  const categoryName = item
+    ? (categories.find((c) => c.id === item.categoryId)?.name ?? "")
+    : "";
+
+  const typesInCategory = useMemo(
+    () => (item ? expenseTypes.filter((t) => t.categoryId === item.categoryId) : []),
+    [expenseTypes, item]
+  );
+  const typeOptions: SelectOption[] = useMemo(
+    () => typesInCategory.map((t) => ({ value: t.id, label: t.name })),
+    [typesInCategory]
+  );
+  const selectedTypeName = typesInCategory.find((t) => t.id === expenseTypeId)?.name ?? "";
 
   useEffect(() => {
     if (item) {
-      setName(item.name);
       setAmount(String(item.amount));
+      const typeId = item.expenseTypeId ?? typesInCategory[0]?.id ?? "";
+      setExpenseTypeId(typesInCategory.some((t) => t.id === typeId) ? typeId : (typesInCategory[0]?.id ?? ""));
     }
-  }, [item]);
+  }, [item, typesInCategory]);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -54,13 +73,23 @@ export function EditBudgetItemModal({ item, open, onClose }: EditBudgetItemModal
     };
   }, [open, onClose]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!item || !name.trim()) return;
+    if (!item || !expenseTypeId) return;
     const amt = Number.parseInt(amount, 10);
     if (Number.isNaN(amt) || amt < 0) return;
-    dispatch(updateBudgetItem({ ...item, name: name.trim(), amount: amt }));
-    onClose();
+    try {
+      await onUpdate({
+        ...item,
+        name: selectedTypeName,
+        amount: amt,
+        expenseTypeId: expenseTypeId || undefined,
+      });
+      toast.success("Budget item updated.");
+      onClose();
+    } catch (err) {
+      toast.error(getWishlistErrorMessage(err, "update", "budgetItem"));
+    }
   };
 
   if (!open || !item) return null;
@@ -77,7 +106,7 @@ export function EditBudgetItemModal({ item, open, onClose }: EditBudgetItemModal
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <div>
             <CardTitle id="edit-budget-item-title">Edit Budget Item</CardTitle>
-            <CardDescription>Update name and amount.</CardDescription>
+            <CardDescription>Update type and amount.</CardDescription>
           </div>
           <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close">
             <X className="h-5 w-5" />
@@ -86,14 +115,34 @@ export function EditBudgetItemModal({ item, open, onClose }: EditBudgetItemModal
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-budget-name">Name</Label>
-              <Input
-                id="edit-budget-name"
-                placeholder="e.g. House Rent, Bazar"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                <Label>Category type</Label>
+                {categoryName ? (
+                  <span
+                    className={cn(
+                      "inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-medium",
+                      isDark
+                        ? "bg-violet-500/20 text-violet-300"
+                        : "bg-violet-100 text-violet-700"
+                    )}
+                  >
+                    {categoryName}
+                  </span>
+                ) : null}
+              </div>
+              {typeOptions.length > 0 ? (
+                <SelectDropdown
+                  options={typeOptions}
+                  value={expenseTypeId}
+                  onChange={(v) => setExpenseTypeId(String(v))}
+                  label=""
+                  className="w-full"
+                />
+              ) : (
+                <p className={cn("text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
+                  No types in this category.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-budget-amount">Amount (৳)</Label>

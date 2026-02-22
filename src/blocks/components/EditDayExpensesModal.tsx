@@ -23,6 +23,7 @@ import { SelectDropdown, type SelectOption } from "@/blocks/components/shared/Se
 import { X, Plus, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
+import { toast } from "sonner";
 
 interface ExpenseItem {
   id: string | null;
@@ -39,8 +40,14 @@ interface EditDayExpensesModalProps {
   selectedCategoryId: string;
   selectedTypeId: string;
   expensesForDay: Expense[];
-  allExpensesForDay: Expense[]; // Unfiltered - for global day note
+  allExpensesForDay: Expense[];
   categoryTypes: { id: string; name: string; mainCategoryId?: string }[];
+  /** When set, add/edit/delete use Firestore instead of Redux */
+  firestoreApi?: {
+    addEntry: (data: Omit<Expense, "id" | "createdAt">) => Promise<Expense | void>;
+    updateEntry: (id: string, data: Partial<Pick<Expense, "amount" | "type" | "category" | "expenseTypeId" | "description" | "date" | "month" | "year">>) => Promise<void>;
+    removeEntry: (id: string) => Promise<void>;
+  };
 }
 
 export function EditDayExpensesModal({
@@ -54,6 +61,7 @@ export function EditDayExpensesModal({
   expensesForDay,
   allExpensesForDay,
   categoryTypes,
+  firestoreApi,
 }: EditDayExpensesModalProps) {
   const dispatch = useAppDispatch();
   const { theme } = useThemeContext();
@@ -101,18 +109,28 @@ export function EditDayExpensesModal({
   const [editName, setEditName] = useState("");
   const [editAmount, setEditAmount] = useState(0);
   const [dayNote, setDayNote] = useState("");
+  const [sectionExpandedTypeIds, setSectionExpandedTypeIds] = useState<string[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
-      setItemsByType(buildInitialItems());
-      setActiveTypeId(String(typeOptions[0]?.value ?? ""));
+      const initial = buildInitialItems();
+      setItemsByType(initial);
+      const firstTypeId = String(typeOptions[0]?.value ?? "");
+      setActiveTypeId(firstTypeId);
       setAddName("");
       setAddAmount("");
       setEditingIdx(null);
-      const note = allExpensesForDay.find(
-        (e) => e.type === "expense" && e.amount === 0 && !e.expenseTypeId
+      const typesWithItems = Array.from(initial.keys()).filter(
+        (id) => (initial.get(id)?.length ?? 0) > 0
       );
-      setDayNote(note?.description ?? "");
+      setSectionExpandedTypeIds(typesWithItems.length > 0 ? typesWithItems : []);
+      const noteCategory = selectedCategoryId || "other";
+      const note = allExpensesForDay.find(
+        (e) => e.type === "expense" && e.amount === 0 && !e.expenseTypeId && e.category === noteCategory
+      );
+      const desc = (note?.description ?? "").trim();
+      setDayNote(desc === "hello dear" ? "" : desc);
     }
   }, [open, day, year, month, selectedCategoryId, selectedTypeId, allExpensesForDay]);
 
@@ -143,6 +161,14 @@ export function EditDayExpensesModal({
     const id = String(typeId);
     setActiveTypeId(id);
     ensureTypeSection(id);
+  };
+
+  const handleAddClick = () => {
+    if (!activeTypeId) return;
+    ensureTypeSection(activeTypeId);
+    setSectionExpandedTypeIds((prev) =>
+      prev.includes(activeTypeId) ? prev : [...prev, activeTypeId]
+    );
   };
 
   const addItem = () => {
@@ -199,82 +225,162 @@ export function EditDayExpensesModal({
     });
   };
 
-  const handleSave = () => {
-    for (const [typeId, list] of itemsByType) {
-      for (const item of list) {
-        if (!item.name.trim() && item.amount <= 0) continue;
-        if (item.id) {
-          const orig = expensesForDay.find((e) => e.id === item.id);
-          if (orig && (orig.description !== item.name || orig.amount !== item.amount)) {
-            dispatch(updateExpense({
-              ...orig,
+  const handleSave = async () => {
+    const api = firestoreApi;
+    if (api) {
+      if (isSaving) return;
+      setIsSaving(true);
+      try {
+        let hadAdd = false;
+        let hadUpdate = false;
+        for (const [typeId, list] of itemsByType) {
+          for (const item of list) {
+            if (!item.name.trim() && item.amount <= 0) continue;
+            const typeMeta = categoryTypes.find((t) => t.id === typeId);
+            const category = selectedCategoryId || (typeMeta?.mainCategoryId ?? "other");
+            if (item.id) {
+              const orig = expensesForDay.find((e) => e.id === item.id);
+              if (orig && (orig.description !== item.name.trim() || orig.amount !== item.amount)) {
+                await api.updateEntry(orig.id, {
+                  description: item.name.trim(),
+                  amount: item.amount,
+                });
+                dispatch(updateExpense({ ...orig, description: item.name.trim(), amount: item.amount }));
+                hadUpdate = true;
+              }
+            } else {
+              await api.addEntry({
+                type: "expense",
+                category,
+                expenseTypeId: typeId,
+                description: item.name.trim(),
+                amount: item.amount,
+                date: dateStr,
+                month,
+                year,
+              });
+              hadAdd = true;
+            }
+          }
+        }
+        const keptIds = new Set<string>();
+        for (const list of itemsByType.values()) {
+          for (const item of list) {
+            if (item.id && item.name.trim() && item.amount > 0) keptIds.add(item.id);
+          }
+        }
+        for (const e of expensesForDay) {
+          if (e.type === "expense" && e.amount !== 0 && !keptIds.has(e.id)) {
+            await api.removeEntry(e.id);
+            dispatch(removeExpense(e.id));
+          }
+        }
+        let note = dayNote.trim();
+        if (note === "hello dear") note = "";
+        const noteCategory = selectedCategoryId || "other";
+        const existingDayNote = allExpensesForDay.find(
+          (e) => e.type === "expense" && e.amount === 0 && !e.expenseTypeId && e.category === noteCategory
+        );
+        if (note) {
+          if (existingDayNote) {
+            if (existingDayNote.description !== note) {
+              await api.updateEntry(existingDayNote.id, { description: note });
+              dispatch(updateExpense({ ...existingDayNote, description: note }));
+              hadUpdate = true;
+            }
+          } else {
+            await api.addEntry({
+              type: "expense",
+              category: noteCategory,
+              description: note,
+              amount: 0,
+              date: dateStr,
+              month,
+              year,
+            });
+            hadAdd = true;
+          }
+        } else if (existingDayNote) {
+          await api.removeEntry(existingDayNote.id);
+          dispatch(removeExpense(existingDayNote.id));
+        }
+        if (hadAdd && hadUpdate) toast.success("Expenses added & updated.");
+        else if (hadAdd) toast.success("Expense added.");
+        else if (hadUpdate) toast.success("Expense updated.");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to save expenses.");
+        return;
+      } finally {
+        setIsSaving(false);
+      }
+    } else {
+      for (const [typeId, list] of itemsByType) {
+        for (const item of list) {
+          if (!item.name.trim() && item.amount <= 0) continue;
+          if (item.id) {
+            const orig = expensesForDay.find((e) => e.id === item.id);
+            if (orig && (orig.description !== item.name || orig.amount !== item.amount)) {
+              dispatch(updateExpense({
+                ...orig,
+                description: item.name.trim(),
+                amount: item.amount,
+              }));
+            }
+          } else {
+            const typeMeta = categoryTypes.find((t) => t.id === typeId);
+            const category = selectedCategoryId || typeMeta?.mainCategoryId || "other";
+            dispatch(addExpense({
+              type: "expense",
+              category,
+              expenseTypeId: typeId,
               description: item.name.trim(),
               amount: item.amount,
+              date: dateStr,
+              month,
+              year,
             }));
           }
+        }
+      }
+      const keptIds = new Set<string>();
+      for (const list of itemsByType.values()) {
+        for (const item of list) {
+          if (item.id && item.name.trim() && item.amount > 0) keptIds.add(item.id);
+        }
+      }
+      for (const e of expensesForDay) {
+        if (e.type === "expense" && e.amount !== 0 && !keptIds.has(e.id)) {
+          dispatch(removeExpense(e.id));
+        }
+      }
+      let note = dayNote.trim();
+      if (note === "hello dear") note = "";
+      const noteCategory = selectedCategoryId || "other";
+      const existingDayNote = allExpensesForDay.find(
+        (e) => e.type === "expense" && e.amount === 0 && !e.expenseTypeId && e.category === noteCategory
+      );
+      if (note) {
+        if (existingDayNote) {
+          if (existingDayNote.description !== note) {
+            dispatch(updateExpense({ ...existingDayNote, description: note }));
+          }
         } else {
-          const typeMeta = categoryTypes.find((t) => t.id === typeId);
-          const category = selectedCategoryId || typeMeta?.mainCategoryId || "other";
           dispatch(addExpense({
             type: "expense",
-            category,
-            expenseTypeId: typeId,
-            description: item.name.trim(),
-            amount: item.amount,
+            category: noteCategory,
+            description: note,
+            amount: 0,
             date: dateStr,
             month,
             year,
           }));
         }
+      } else if (existingDayNote) {
+        dispatch(removeExpense(existingDayNote.id));
       }
-    }
-    const keptIds = new Set<string>();
-    for (const list of itemsByType.values()) {
-      for (const item of list) {
-        if (item.id && item.name.trim() && item.amount > 0) keptIds.add(item.id);
-      }
-    }
-    for (const e of expensesForDay) {
-      if (e.type === "expense" && e.amount !== 0 && !keptIds.has(e.id)) {
-        dispatch(removeExpense(e.id));
-      }
-    }
-    // Handle global day note (amount 0, no expenseTypeId)
-    const note = dayNote.trim();
-    const existingDayNote = allExpensesForDay.find(
-      (e) => e.type === "expense" && e.amount === 0 && !e.expenseTypeId
-    );
-    if (note) {
-      if (existingDayNote) {
-        if (existingDayNote.description !== note) {
-          dispatch(updateExpense({ ...existingDayNote, description: note }));
-        }
-      } else {
-        dispatch(addExpense({
-          type: "expense",
-          category: "other",
-          description: note,
-          amount: 0,
-          date: dateStr,
-          month,
-          year,
-        }));
-      }
-    } else if (existingDayNote) {
-      dispatch(removeExpense(existingDayNote.id));
     }
     onClose();
   };
-
-  const sectionTypeIds = useMemo(() => {
-    const ids = Array.from(itemsByType.keys());
-    const ordered = typesToShow.map((t) => t.id).filter((id) => ids.includes(id));
-    const rest = ids.filter((id) => !ordered.includes(id));
-    if (activeTypeId && !ordered.includes(activeTypeId) && !rest.includes(activeTypeId)) {
-      return [activeTypeId, ...ordered, ...rest];
-    }
-    return [...ordered, ...rest];
-  }, [itemsByType, typesToShow, activeTypeId]);
 
   if (!open) return null;
 
@@ -293,7 +399,7 @@ export function EditDayExpensesModal({
               Edit expenses — {day} {monthLabel} {year}
             </CardTitle>
             <CardDescription>
-              Select type, add items, then edit or delete from the list.
+              Select expense type, click Add items, then the section below appears to add or edit items.
             </CardDescription>
           </div>
           <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close">
@@ -301,20 +407,34 @@ export function EditDayExpensesModal({
           </Button>
         </CardHeader>
         <CardContent className="flex-1 overflow-y-auto space-y-5 pb-4">
-          {/* 1. Type selector first */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Select expense type</label>
-            <SelectDropdown
-              options={typeOptions}
-              value={activeTypeId}
-              onChange={handleTypeSelect}
-              label=""
-              className="w-full"
-            />
+          {/* 1. Type selector + Add button side by side (pasapasi) on mobile and desktop */}
+          <div className="flex flex-nowrap items-end gap-2 sm:gap-3">
+            <div className="min-w-0 flex-1 space-y-2">
+              <label className="text-sm font-medium text-foreground">Select expense type</label>
+              <SelectDropdown
+                options={typeOptions}
+                value={activeTypeId}
+                onChange={handleTypeSelect}
+                label=""
+                className="w-full"
+              />
+            </div>
+            {activeTypeId && (
+              <Button
+                type="button"
+                variant="outline"
+                size="default"
+                onClick={handleAddClick}
+                className="shrink-0 gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Add items
+              </Button>
+            )}
           </div>
 
-          {/* 2. Sections: type as header, add form, list */}
-          {sectionTypeIds.map((typeId) => {
+          {/* 3. Item sections – each stays visible once added; type change doesn’t remove them */}
+          {sectionExpandedTypeIds.map((typeId) => {
             const typeInfo = typesToShow.find((t) => t.id === typeId);
             const typeName = typeInfo?.name ?? typeId;
             const list = itemsByType.get(typeId) ?? [];
@@ -330,7 +450,6 @@ export function EditDayExpensesModal({
               >
                 <h4 className="font-semibold text-foreground">{typeName}</h4>
 
-                {/* Add form - show only for active type */}
                 {isActive && (
                   <div className="flex flex-wrap items-center gap-2">
                     <Input
@@ -353,14 +472,13 @@ export function EditDayExpensesModal({
                       variant="outline"
                       size="sm"
                       onClick={addItem}
-                      className="h-11 gap-1 shrink-0"
+                      className="h-11 w-full gap-1 shrink-0 sm:w-auto"
                     >
                       <Plus className="h-4 w-4" /> Add
                     </Button>
                   </div>
                 )}
 
-                {/* List of items */}
                 <div className="space-y-2">
                   {list.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-1">No items yet.</p>
@@ -379,19 +497,21 @@ export function EditDayExpensesModal({
                             <div className="flex items-center gap-2">
                             {isEditing ? (
                               <>
-                                <Input
-                                  value={editName}
-                                  onChange={(e) => setEditName(e.target.value)}
-                                  className="flex-1 min-w-0"
-                                />
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  value={editAmount}
-                                  onChange={(e) => setEditAmount(Number(e.target.value) || 0)}
-                                  className="w-20"
-                                />
-                                <span className="text-sm text-muted-foreground">৳</span>
+                                <div className="flex flex-1 min-w-0 gap-2">
+                                  <Input
+                                    value={editName}
+                                    onChange={(e) => setEditName(e.target.value)}
+                                    className="min-w-0 flex-[85_0_0]"
+                                  />
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    value={editAmount}
+                                    onChange={(e) => setEditAmount(Number(e.target.value) || 0)}
+                                    className="min-w-0 flex-[35_0_0]"
+                                  />
+                                </div>
+                                <span className="text-sm text-muted-foreground shrink-0">৳</span>
                                 <Button type="button" size="sm" onClick={saveEdit}>
                                   Save
                                 </Button>
@@ -439,7 +559,7 @@ export function EditDayExpensesModal({
           })}
 
           {/* Global note input at bottom */}
-          <div className="pt-4 pb-2 border-t dark:border-white/10">
+          <div className="pt-4 pb-2 border-t border-[#ddd] dark:border-white/10">
             <Input
               placeholder="Note (optional)"
               value={dayNote}
@@ -448,9 +568,9 @@ export function EditDayExpensesModal({
             />
           </div>
         </CardContent>
-        <CardFooter className="grid grid-cols-2 gap-2 shrink-0 border-t pt-5 dark:border-white/10">
-          <Button type="button" onClick={handleSave} className="w-full">
-            Save Changes
+        <CardFooter className="grid grid-cols-2 gap-2 shrink-0 border-t border-[#ddd] pt-6 dark:border-white/10">
+          <Button type="button" onClick={handleSave} className="w-full" disabled={!!firestoreApi && isSaving}>
+            {firestoreApi && isSaving ? "Saving…" : "Save Changes"}
           </Button>
           <Button type="button" variant="secondary" onClick={onClose} className="w-full">
             Cancel

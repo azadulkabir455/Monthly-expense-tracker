@@ -33,8 +33,10 @@ import { SelectDropdown, type SelectOption } from "@/blocks/components/shared/Se
 import { formatMoneyK } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
+import { Skeleton } from "@/blocks/elements/Skeleton";
 
 const PAGE_SIZE = 10;
+const DESKTOP_MAX_WISHES = 5;
 
 const CATEGORY_ALL: SelectOption = { value: "", label: "All Categories" };
 const PRIORITY_ALL: SelectOption = { value: "", label: "All Priorities" };
@@ -68,6 +70,16 @@ export function WishListSection() {
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const [openActionId, setOpenActionId] = useState<string | null>(null);
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [desktopExpanded, setDesktopExpanded] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 640px)");
+    setIsDesktop(mq.matches);
+    const listener = () => setIsDesktop(mq.matches);
+    mq.addEventListener("change", listener);
+    return () => mq.removeEventListener("change", listener);
+  }, []);
 
   useEffect(() => {
     if (filterModalOpen) document.body.style.overflow = "hidden";
@@ -100,12 +112,19 @@ export function WishListSection() {
     return true;
   });
 
-  const visibleWishes = filteredWishes.slice(0, visibleCount);
-  const hasMore = visibleCount < filteredWishes.length;
+  const visibleWishes = filteredWishes.slice(0, isDesktop && !desktopExpanded ? DESKTOP_MAX_WISHES : visibleCount);
+  const hasMore = isDesktop && !desktopExpanded
+    ? filteredWishes.length > DESKTOP_MAX_WISHES
+    : visibleCount < filteredWishes.length;
 
   const loadMore = useCallback(() => {
-    setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, filteredWishes.length));
-  }, [filteredWishes.length]);
+    if (isDesktop && !desktopExpanded) {
+      setDesktopExpanded(true);
+      setVisibleCount((prev) => Math.max(prev, Math.min(DESKTOP_MAX_WISHES + PAGE_SIZE, filteredWishes.length)));
+    } else {
+      setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, filteredWishes.length));
+    }
+  }, [filteredWishes.length, isDesktop, desktopExpanded]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -404,9 +423,28 @@ export function WishListSection() {
       )}
 
       {loading ? (
-        <p className={cn("py-8 text-center text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
-          Loading…
-        </p>
+        <ul className="space-y-2 sm:space-y-3">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <li
+              key={i}
+              className={cn(
+                "flex items-center gap-3 rounded-xl border px-3 py-2.5 sm:gap-4 sm:px-4 sm:py-3",
+                isDark ? "border-white/10 bg-white/5" : "border-slate-100 bg-slate-50/60"
+              )}
+            >
+              <Skeleton className="h-4 w-4 shrink-0 rounded" />
+              <Skeleton className="h-10 w-10 shrink-0 rounded-xl sm:h-11 sm:w-11" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <div className="flex gap-1.5">
+                  <Skeleton className="h-5 w-16 rounded-md" />
+                  <Skeleton className="h-5 w-20 rounded-md" />
+                </div>
+              </div>
+              <Skeleton className="h-4 w-12 shrink-0" />
+            </li>
+          ))}
+        </ul>
       ) : (
       <ul className="space-y-2 sm:space-y-3">
         {visibleWishes.map((item) => {

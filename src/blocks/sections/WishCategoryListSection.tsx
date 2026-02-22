@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
 import { EditWishCategoryModal } from "@/blocks/components/EditWishCategoryModal";
 import { ConfirmModal } from "@/blocks/components/shared/ConfirmModal";
+import { Skeleton } from "@/blocks/elements/Skeleton";
 
 export function WishCategoryListSection() {
   const { theme } = useThemeContext();
@@ -73,9 +74,20 @@ export function WishCategoryListSection() {
       </SectionHeader>
 
       {loading ? (
-        <p className={cn("py-6 text-center text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
-          Loading…
-        </p>
+        <ul className="space-y-2 sm:space-y-3 overflow-visible">
+          {[1, 2, 3].map((i) => (
+            <li
+              key={i}
+              className={cn(
+                "flex items-center gap-3 rounded-xl border px-4 py-3",
+                isDark ? "border-white/10 bg-white/5" : "border-slate-100 bg-slate-50/60"
+              )}
+            >
+              <Skeleton className="h-5 w-5 shrink-0 rounded" />
+              <Skeleton className="h-5 flex-1 max-w-[140px]" />
+            </li>
+          ))}
+        </ul>
       ) : (
       <ul className="space-y-2 sm:space-y-3 overflow-visible">
         {categories.map((cat) => (

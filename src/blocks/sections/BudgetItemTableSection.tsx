@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAppSelector, useAppDispatch } from "@/store/hooks";
-import { selectBudgetItemsForMonth, removeBudgetItem } from "@/store/slices/expensesSlice";
+import { toast } from "sonner";
 import type { BudgetItem } from "@/types/budget";
+import { getWishlistErrorMessage } from "@/lib/firebase/wishlist/errors";
 import {
   SectionCard,
   SectionHeader,
@@ -16,17 +16,33 @@ import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
 import { ConfirmModal } from "@/blocks/components/shared/ConfirmModal";
 import { EditBudgetItemModal } from "@/blocks/components/EditBudgetItemModal";
+import { Skeleton } from "@/blocks/elements/Skeleton";
 
 interface BudgetItemTableSectionProps {
   year: number;
   month: number;
+  categoryId?: string;
+  /** Budget items (e.g. from Firestore, already filtered by year, month, categoryId) */
+  items: BudgetItem[];
+  loading?: boolean;
+  onDeleteItem: (id: string) => Promise<void>;
+  onUpdateItem: (item: BudgetItem) => Promise<void>;
+  /** Renders on the right side of the section header (e.g. date picker, category filter) */
+  headerRight?: React.ReactNode;
 }
 
-export function BudgetItemTableSection({ year, month }: BudgetItemTableSectionProps) {
-  const dispatch = useAppDispatch();
+export function BudgetItemTableSection({
+  year,
+  month,
+  categoryId,
+  items,
+  loading = false,
+  onDeleteItem,
+  onUpdateItem,
+  headerRight,
+}: BudgetItemTableSectionProps) {
   const { theme } = useThemeContext();
   const isDark = theme === "dark";
-  const items = useAppSelector((s) => selectBudgetItemsForMonth(s, year, month));
   const [deleteTarget, setDeleteTarget] = useState<BudgetItem | null>(null);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null);
@@ -54,10 +70,15 @@ export function BudgetItemTableSection({ year, month }: BudgetItemTableSectionPr
     setConfirmModalOpen(true);
   };
 
-  const handleConfirmDelete = () => {
-    if (deleteTarget) {
-      dispatch(removeBudgetItem(deleteTarget.id));
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await onDeleteItem(deleteTarget.id);
+      toast.success("Budget item deleted.");
+      setConfirmModalOpen(false);
       setDeleteTarget(null);
+    } catch (err) {
+      toast.error(getWishlistErrorMessage(err, "delete", "budgetItem"));
     }
   };
 
@@ -68,9 +89,31 @@ export function BudgetItemTableSection({ year, month }: BudgetItemTableSectionPr
           <SectionTitle>Budget List</SectionTitle>
           <SectionSubtitle>Name and amount in table format.</SectionSubtitle>
         </div>
+        {headerRight}
       </SectionHeader>
 
-      {items.length === 0 ? (
+      {loading ? (
+        <div className="overflow-x-auto rounded-xl border border-[#ddd] shadow-card dark:border-white/10">
+          <table className="w-full min-w-[280px] text-left text-sm">
+            <thead>
+              <tr className={cn("border-b", isDark ? "border-white/10 bg-white/5" : "border-[#ddd] bg-slate-50/80")}>
+                <th className="px-4 py-3 font-semibold text-foreground">Name</th>
+                <th className="px-4 py-3 font-semibold text-foreground text-right">Money (৳)</th>
+                <th className="w-24 px-2 py-3" aria-hidden />
+              </tr>
+            </thead>
+            <tbody>
+              {[1, 2, 3, 4].map((i) => (
+                <tr key={i} className={cn("border-b", isDark ? "border-white/5" : "border-slate-50")}>
+                  <td className="px-4 py-3"><Skeleton className="h-4 w-28" /></td>
+                  <td className="px-4 py-3 text-right"><Skeleton className="h-4 w-16 ml-auto" /></td>
+                  <td className="w-24 px-2 py-3" />
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : items.length === 0 ? (
         <p className={cn("py-8 text-center text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
           No budget items yet. Add one above.
         </p>
@@ -216,6 +259,7 @@ export function BudgetItemTableSection({ year, month }: BudgetItemTableSectionPr
           setEditModalOpen(false);
           setEditingItem(null);
         }}
+        onUpdate={onUpdateItem}
       />
       <ConfirmModal
         open={confirmModalOpen}

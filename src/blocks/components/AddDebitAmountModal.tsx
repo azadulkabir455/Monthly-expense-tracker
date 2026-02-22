@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { setBudgetDebitForMonth, selectBudgetDebitForMonth } from "@/store/slices/expensesSlice";
+import { toast } from "sonner";
 import {
   Card,
   CardContent,
@@ -24,14 +23,24 @@ interface AddDebitAmountModalProps {
   onClose: () => void;
   year: number;
   month: number;
+  /** Current debit amount (from Firestore) — for edit mode */
+  currentAmount?: number | null;
+  /** Save to Firestore (user-wise). Called with amount in ৳. */
+  onSave: (amount: number) => Promise<void>;
 }
 
-export function AddDebitAmountModal({ open, onClose, year, month }: AddDebitAmountModalProps) {
-  const dispatch = useAppDispatch();
-  const currentAmount = useAppSelector((s) => selectBudgetDebitForMonth(s, year, month));
+export function AddDebitAmountModal({
+  open,
+  onClose,
+  year,
+  month,
+  currentAmount,
+  onSave,
+}: AddDebitAmountModalProps) {
   const { theme } = useThemeContext();
   const isDark = theme === "dark";
   const [amount, setAmount] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const isEdit = currentAmount != null;
 
@@ -55,12 +64,24 @@ export function AddDebitAmountModal({ open, onClose, year, month }: AddDebitAmou
     };
   }, [open, onClose]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const amt = Number.parseInt(amount, 10);
-    if (Number.isNaN(amt) || amt < 0) return;
-    dispatch(setBudgetDebitForMonth({ year, month, amount: amt }));
-    onClose();
+    if (Number.isNaN(amt) || amt < 0 || submitting) return;
+    setSubmitting(true);
+    try {
+      await onSave(amt);
+      toast.success(isEdit ? "Debit updated." : "Debit added.");
+      onClose();
+    } catch (err) {
+      const msg =
+        err instanceof Error && err.message === "NOT_AUTHENTICATED"
+          ? "Please sign in first."
+          : "Could not save debit. Try again.";
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (!open) return null;
@@ -101,8 +122,8 @@ export function AddDebitAmountModal({ open, onClose, year, month }: AddDebitAmou
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-2 sm:flex-row">
-            <Button type="submit" className="w-full sm:w-auto">
-              {isEdit ? "Save Changes" : "Add"}
+            <Button type="submit" className="w-full sm:w-auto" disabled={submitting}>
+              {submitting ? "Saving…" : isEdit ? "Save Changes" : "Add"}
             </Button>
             <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={onClose}>
               Cancel

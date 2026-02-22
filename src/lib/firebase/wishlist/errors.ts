@@ -4,7 +4,7 @@
 export function getWishlistErrorMessage(
   err: unknown,
   context: "add" | "update" | "delete",
-  kind: "category" | "priority" | "wish"
+  kind: "category" | "priority" | "wish" | "expenseCategory" | "expenseType" | "budgetItem"
 ): string {
   if (err instanceof Error) {
     if (err.message === "NOT_AUTHENTICATED") {
@@ -23,6 +23,17 @@ export function getWishlistErrorMessage(
     }
   }
   const action = context === "add" ? "add" : context === "update" ? "update" : "delete";
-  const what = kind === "category" ? "category" : kind === "priority" ? "priority type" : "wish item";
+  const what =
+    kind === "category"
+      ? "category"
+      : kind === "priority"
+        ? "priority type"
+        : kind === "wish"
+          ? "wish item"
+          : kind === "expenseType"
+            ? "expense type"
+            : kind === "budgetItem"
+              ? "budget item"
+              : "expense category";
   return `Could not ${action} ${what}. Try again.`;
 }

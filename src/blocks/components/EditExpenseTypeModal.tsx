@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { updateExpenseType, selectExpenseCategories } from "@/store/slices/expensesSlice";
+import { toast } from "sonner";
+import { useExpenseCategories, useExpenseTypes } from "@/lib/firebase/expenses";
+import { getWishlistErrorMessage } from "@/lib/firebase/wishlist/errors";
 import { MAIN_EXPENSE_CATEGORIES } from "@/types/expense";
 import type { ExpenseType } from "@/types/expenseCategory";
 import { SelectDropdown, type SelectOption } from "@/blocks/components/shared/SelectDropdown";
@@ -29,18 +30,18 @@ interface EditExpenseTypeModalProps {
 }
 
 export function EditExpenseTypeModal({ expenseType, open, onClose }: EditExpenseTypeModalProps) {
-  const dispatch = useAppDispatch();
-  const categories = useAppSelector(selectExpenseCategories);
+  const { categories } = useExpenseCategories();
+  const { updateType } = useExpenseTypes();
   const { theme } = useThemeContext();
   const isDark = theme === "dark";
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [mainCategoryId, setMainCategoryId] = useState("");
 
-  const categoryOptions: SelectOption[] = categories.map((c) => ({
-    value: c.id,
-    label: c.name,
-  }));
+  const categoryOptions: SelectOption[] = useMemo(
+    () => categories.map((c) => ({ value: c.id, label: c.name })),
+    [categories]
+  );
 
   const mainCategoryOptions: SelectOption[] = MAIN_EXPENSE_CATEGORIES.map((c) => ({
     value: c.id,
@@ -69,18 +70,20 @@ export function EditExpenseTypeModal({ expenseType, open, onClose }: EditExpense
     };
   }, [open, onClose]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!expenseType || !name.trim() || !categoryId) return;
-    dispatch(
-      updateExpenseType({
-        ...expenseType,
+    try {
+      await updateType(expenseType.id, {
         name: name.trim(),
         categoryId,
         mainCategoryId: mainCategoryId || undefined,
-      })
-    );
-    onClose();
+      });
+      toast.success("Expense type updated.");
+      onClose();
+    } catch (err) {
+      toast.error(getWishlistErrorMessage(err, "update", "expenseType"));
+    }
   };
 
   if (!open || !expenseType) return null;

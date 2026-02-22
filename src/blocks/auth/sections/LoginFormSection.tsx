@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { setLoginStartYear } from "@/hooks/useStartYear";
@@ -19,19 +19,39 @@ import {
   CardTitle,
 } from "@/blocks/elements/Card";
 import { Button } from "@/blocks/elements/Button";
+import { Checkbox } from "@/blocks/elements/Checkbox";
 import { Eye, EyeOff } from "lucide-react";
 import { Input } from "@/blocks/elements/Input";
 import { Label } from "@/blocks/elements/Label";
 import { SocialLoginButton } from "@/blocks/auth/components/SocialLoginButton";
+import { cn } from "@/lib/utils";
+import { useThemeContext } from "@/context/ThemeContext";
+
+const REMEMBER_ME_STORAGE_KEY = "login-remember-email";
+const REMEMBER_ME_PASSWORD_KEY = "login-remember-password";
 
 export function LoginFormSection() {
   const router = useRouter();
+  const { theme } = useThemeContext();
+  const isDark = theme === "dark";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const savedEmail = localStorage.getItem(REMEMBER_ME_STORAGE_KEY);
+    const savedPassword = localStorage.getItem(REMEMBER_ME_PASSWORD_KEY);
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+      if (savedPassword) setPassword(savedPassword);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +59,13 @@ export function LoginFormSection() {
     setLoading(true);
     try {
       const cred = await loginWithEmailPassword(email, password);
+      if (rememberMe) {
+        localStorage.setItem(REMEMBER_ME_STORAGE_KEY, email);
+        localStorage.setItem(REMEMBER_ME_PASSWORD_KEY, password);
+      } else {
+        localStorage.removeItem(REMEMBER_ME_STORAGE_KEY);
+        localStorage.removeItem(REMEMBER_ME_PASSWORD_KEY);
+      }
       const token = await cred.user.getIdToken();
       await setSessionCookie(token);
       setLoginStartYear();
@@ -59,6 +86,12 @@ export function LoginFormSection() {
     setGoogleLoading(true);
     try {
       const cred = await loginWithGoogle();
+      if (rememberMe && cred.user.email) {
+        localStorage.setItem(REMEMBER_ME_STORAGE_KEY, cred.user.email);
+      } else {
+        localStorage.removeItem(REMEMBER_ME_STORAGE_KEY);
+        localStorage.removeItem(REMEMBER_ME_PASSWORD_KEY);
+      }
       const token = await cred.user.getIdToken();
       await setSessionCookie(token);
       setLoginStartYear();
@@ -148,6 +181,18 @@ export function LoginFormSection() {
               </button>
             </div>
           </div>
+          <label
+            className={cn(
+              "flex cursor-pointer items-center gap-2 text-sm",
+              isDark ? "text-slate-300" : "text-slate-700"
+            )}
+          >
+            <Checkbox
+              checked={rememberMe}
+              onCheckedChange={(checked) => setRememberMe(!!checked)}
+            />
+            <span>Remember me</span>
+          </label>
         </CardContent>
         <CardFooter>
           <Button type="submit" className="w-full" disabled={loading}>

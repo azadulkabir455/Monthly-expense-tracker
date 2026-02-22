@@ -10,9 +10,15 @@ import {
 import { AddExpenseCategoryModal } from "@/blocks/components/AddExpenseCategoryModal";
 import { Button } from "@/blocks/elements/Button";
 import { FolderPlus } from "lucide-react";
+import { useExpenseCategories } from "@/lib/firebase/expenses";
 
 export function ExpenseCategorySection() {
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const { addCategory } = useExpenseCategories();
+
+  const handleAdd = async (name: string, icon: string, gradientPreset: string) => {
+    await addCategory(name, icon, gradientPreset);
+  };
 
   return (
     <SectionCard>
@@ -28,7 +34,11 @@ export function ExpenseCategorySection() {
           Add Expense Category
         </Button>
       </SectionHeader>
-      <AddExpenseCategoryModal open={addModalOpen} onClose={() => setAddModalOpen(false)} />
+      <AddExpenseCategoryModal
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        onAdd={handleAdd}
+      />
     </SectionCard>
   );
 }

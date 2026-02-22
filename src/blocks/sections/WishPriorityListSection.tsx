@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
 import { EditWishPriorityModal } from "@/blocks/components/EditWishPriorityModal";
 import { ConfirmModal } from "@/blocks/components/shared/ConfirmModal";
+import { Skeleton } from "@/blocks/elements/Skeleton";
 
 export function WishPriorityListSection() {
   const { theme } = useThemeContext();
@@ -82,9 +83,21 @@ export function WishPriorityListSection() {
       </SectionHeader>
 
       {loading ? (
-        <p className={cn("py-6 text-center text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
-          Loading…
-        </p>
+        <ul className="space-y-2 sm:space-y-3">
+          {[1, 2, 3, 4].map((i) => (
+            <li
+              key={i}
+              className={cn(
+                "flex items-center gap-3 rounded-xl border px-4 py-3",
+                isDark ? "border-white/10 bg-white/5" : "border-slate-100 bg-slate-50/60"
+              )}
+            >
+              <Skeleton className="h-5 w-5 shrink-0 rounded" />
+              <Skeleton className="h-5 flex-1 max-w-[120px]" />
+              <Skeleton className="h-5 w-14 rounded-md" />
+            </li>
+          ))}
+        </ul>
       ) : (
       <ul className="space-y-2 sm:space-y-3">
         {priorities.map((p) => (

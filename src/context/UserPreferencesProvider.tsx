@@ -53,9 +53,11 @@ function getStoredColorTheme(): ColorThemeId | null {
 }
 
 export function UserPreferencesProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(DEFAULT_PREFERENCES.theme);
+  const [theme, setThemeState] = useState<Theme>(
+    () => getStoredTheme() ?? DEFAULT_PREFERENCES.theme
+  );
   const [colorTheme, setColorThemeState] = useState<ColorThemeId>(
-    DEFAULT_PREFERENCES.colorTheme
+    () => getStoredColorTheme() ?? DEFAULT_PREFERENCES.colorTheme
   );
   const [mounted, setMounted] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -127,7 +129,15 @@ export function UserPreferencesProvider({ children }: { children: React.ReactNod
   }, [userId]);
 
   if (!mounted) {
-    return <AppLoader />;
+    return (
+      <ThemeContext.Provider value={{ theme, setTheme, mounted: false }}>
+        <ColorThemeContext.Provider
+          value={{ colorTheme, setColorTheme, mounted: false }}
+        >
+          <AppLoader />
+        </ColorThemeContext.Provider>
+      </ThemeContext.Provider>
+    );
   }
 
   return (

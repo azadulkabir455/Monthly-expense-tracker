@@ -22,5 +22,25 @@ service cloud.firestore {
     match /users/{userId}/wishlistItems/{docId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+    // Monthly budget debit (user-wise, per month)
+    match /users/{userId}/budgetDebit/{docId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    // Monthly budget items (daily budget list per user)
+    match /users/{userId}/budgetItems/{docId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    // Expense categories (user-wise): name, icon, color
+    match /users/{userId}/expenseCategories/{docId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    // Expense types (user-wise): name, categoryId, mainCategoryId, group
+    match /users/{userId}/expenseTypes/{docId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    // Expense entries (user-wise): add/edit/delete category-wise
+    match /users/{userId}/expenseEntries/{docId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
   }
 }

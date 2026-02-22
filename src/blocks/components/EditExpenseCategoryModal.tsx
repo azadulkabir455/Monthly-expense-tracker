@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useAppDispatch } from "@/store/hooks";
-import { updateExpenseCategory } from "@/store/slices/expensesSlice";
+import { toast } from "sonner";
 import type { ExpenseCategory, ExpenseCategoryIconType, GradientPresetId } from "@/types/expenseCategory";
 import { GRADIENT_PRESETS } from "@/types/expenseCategory";
+import { getWishlistErrorMessage } from "@/lib/firebase/wishlist/errors";
 import {
   Card,
   CardContent,
@@ -26,17 +26,28 @@ interface EditExpenseCategoryModalProps {
   category: ExpenseCategory | null;
   open: boolean;
   onClose: () => void;
+  onUpdate: (
+    id: string,
+    name: string,
+    icon: string,
+    gradientPreset: string
+  ) => Promise<void>;
 }
 
 const GRADIENT_IDS = Object.keys(GRADIENT_PRESETS) as GradientPresetId[];
 
-export function EditExpenseCategoryModal({ category, open, onClose }: EditExpenseCategoryModalProps) {
-  const dispatch = useAppDispatch();
+export function EditExpenseCategoryModal({
+  category,
+  open,
+  onClose,
+  onUpdate,
+}: EditExpenseCategoryModalProps) {
   const { theme } = useThemeContext();
   const isDark = theme === "dark";
   const [name, setName] = useState("");
   const [icon, setIcon] = useState<ExpenseCategoryIconType>("home");
   const [gradientPreset, setGradientPreset] = useState<GradientPresetId>("violet");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (category) {
@@ -60,11 +71,19 @@ export function EditExpenseCategoryModal({ category, open, onClose }: EditExpens
     };
   }, [open, onClose]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!category || !name.trim()) return;
-    dispatch(updateExpenseCategory({ ...category, name: name.trim(), icon, gradientPreset }));
-    onClose();
+    if (!category || !name.trim() || submitting) return;
+    setSubmitting(true);
+    try {
+      await onUpdate(category.id, name.trim(), icon, gradientPreset);
+      toast.success("Expense category updated.");
+      onClose();
+    } catch (err) {
+      toast.error(getWishlistErrorMessage(err, "update", "expenseCategory"));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (!open || !category) return null;
@@ -128,8 +147,8 @@ export function EditExpenseCategoryModal({ category, open, onClose }: EditExpens
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-2 sm:flex-row">
-            <Button type="submit" className="w-full sm:w-auto">
-              Save Changes
+            <Button type="submit" className="w-full sm:w-auto" disabled={submitting}>
+              {submitting ? "Saving…" : "Save Changes"}
             </Button>
             <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={onClose}>
               Cancel

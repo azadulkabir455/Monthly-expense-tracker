@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { ExpenseCategorySection } from "@/blocks/sections/ExpenseCategorySection";
 import { ExpenseCategoryListSection } from "@/blocks/sections/ExpenseCategoryListSection";
@@ -7,6 +8,8 @@ import { ExpenseTypeSection } from "@/blocks/sections/ExpenseTypeSection";
 import { ExpenseTypeListSection } from "@/blocks/sections/ExpenseTypeListSection";
 
 export default function ExpensesCategoryPage() {
+  const [typeFilterCategoryId, setTypeFilterCategoryId] = useState<string>("");
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -16,8 +19,11 @@ export default function ExpensesCategoryPage() {
     >
       <ExpenseCategorySection />
       <ExpenseCategoryListSection />
-      <ExpenseTypeSection />
-      <ExpenseTypeListSection />
+      <ExpenseTypeSection
+        selectedCategoryId={typeFilterCategoryId}
+        onCategoryChange={setTypeFilterCategoryId}
+      />
+      <ExpenseTypeListSection selectedCategoryId={typeFilterCategoryId} />
     </motion.div>
   );
 }

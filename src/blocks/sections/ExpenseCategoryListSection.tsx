@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAppSelector, useAppDispatch } from "@/store/hooks";
-import { selectExpenseCategories, removeExpenseCategory } from "@/store/slices/expensesSlice";
+import { toast } from "sonner";
+import { useExpenseCategories } from "@/lib/firebase/expenses";
+import { getWishlistErrorMessage } from "@/lib/firebase/wishlist/errors";
 import type { ExpenseCategory } from "@/types/expenseCategory";
 import { GRADIENT_PRESETS } from "@/types/expenseCategory";
 import {
@@ -17,15 +18,15 @@ import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
 import { EditExpenseCategoryModal } from "@/blocks/components/EditExpenseCategoryModal";
 import { ConfirmModal } from "@/blocks/components/shared/ConfirmModal";
+import { Skeleton } from "@/blocks/elements/Skeleton";
 
 export function ExpenseCategoryListSection() {
-  const dispatch = useAppDispatch();
   const { theme } = useThemeContext();
   const isDark = theme === "dark";
-  const categories = useAppSelector(selectExpenseCategories);
+  const { categories, loading, updateCategory, deleteCategory } = useExpenseCategories();
   const [editingCategory, setEditingCategory] = useState<ExpenseCategory | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
-    const [deleteTarget, setDeleteTarget] = useState<ExpenseCategory | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ExpenseCategory | null>(null);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [openActionId, setOpenActionId] = useState<string | null>(null);
 
@@ -48,11 +49,23 @@ export function ExpenseCategoryListSection() {
     setConfirmModalOpen(true);
   };
 
-  const handleConfirmDelete = () => {
-    if (deleteTarget) {
-      dispatch(removeExpenseCategory(deleteTarget.id));
-      setDeleteTarget(null);
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteCategory(deleteTarget.id);
+      toast.success("Expense category deleted.");
+    } catch (err) {
+      toast.error(getWishlistErrorMessage(err, "delete", "expenseCategory"));
     }
+  };
+
+  const handleUpdate = async (
+    id: string,
+    name: string,
+    icon: string,
+    gradientPreset: string
+  ) => {
+    await updateCategory(id, name, icon, gradientPreset);
   };
 
   return (
@@ -64,6 +77,23 @@ export function ExpenseCategoryListSection() {
         </div>
       </SectionHeader>
 
+      {loading ? (
+        <ul className="space-y-2 sm:space-y-3 overflow-visible">
+          {[1, 2, 3].map((i) => (
+            <li
+              key={i}
+              className={cn(
+                "flex items-center gap-3 rounded-xl border px-4 py-3",
+                isDark ? "border-white/10 bg-white/5" : "border-slate-100 bg-slate-50/60"
+              )}
+            >
+              <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
+              <Skeleton className="h-5 flex-1 max-w-[140px]" />
+              <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
+            </li>
+          ))}
+        </ul>
+      ) : (
       <ul className="space-y-2 sm:space-y-3 overflow-visible">
         {categories.map((cat) => {
           const preset = GRADIENT_PRESETS[cat.gradientPreset];
@@ -175,10 +205,11 @@ export function ExpenseCategoryListSection() {
           );
         })}
       </ul>
+      )}
 
-      {categories.length === 0 && (
+      {!loading && categories.length === 0 && (
         <p className={cn("py-8 text-center text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
-          No expense categories yet. Add one above.
+          No data. Add an expense category above.
         </p>
       )}
 
@@ -189,6 +220,7 @@ export function ExpenseCategoryListSection() {
           setEditModalOpen(false);
           setEditingCategory(null);
         }}
+        onUpdate={handleUpdate}
       />
       <ConfirmModal
         open={confirmModalOpen}

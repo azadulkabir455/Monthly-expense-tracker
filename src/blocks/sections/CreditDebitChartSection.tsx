@@ -15,11 +15,8 @@ import {
 } from "chart.js";
 import { Bar } from "react-chartjs-2";
 import { useAppSelector } from "@/store/hooks";
-import {
-  selectMonthlyCreditDebitForYear,
-  selectDailyCreditForMonth,
-} from "@/store/slices/expensesSlice";
-import { MAIN_EXPENSE_CATEGORIES } from "@/types/expense";
+import { useExpenseCategories, useExpenseTypes, useExpenseEntries } from "@/lib/firebase/expenses";
+import { useBudgetDebitForYear, useBudgetItemsForYear } from "@/lib/firebase/budget";
 import { useThemeContext } from "@/context/ThemeContext";
 import { useStartYear } from "@/hooks/useStartYear";
 import { useClientDate } from "@/hooks/useClientDate";
@@ -63,10 +60,7 @@ const MONTH_OPTIONS: SelectOption[] = [
   { value: 12, label: "Dec" },
 ];
 
-const CATEGORY_OPTIONS: SelectOption[] = [
-  { value: "all", label: "All Categories" },
-  ...MAIN_EXPENSE_CATEGORIES.map((c) => ({ value: c.id, label: c.label })),
-];
+const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export function CreditDebitChartSection() {
   const { theme } = useThemeContext();
@@ -86,6 +80,79 @@ export function CreditDebitChartSection() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [filterModalOpen, setFilterModalOpen] = useState(false);
 
+  const { categories: expenseCategories } = useExpenseCategories();
+  const { types: expenseTypes } = useExpenseTypes();
+  useExpenseEntries();
+  const { debitByMonth: budgetDebitByMonth } = useBudgetDebitForYear(selectedYear);
+  const { items: budgetItemsForYear } = useBudgetItemsForYear(selectedYear);
+
+  const categoryOptions: SelectOption[] = useMemo(
+    () => [
+      { value: "all", label: "All Categories" },
+      ...expenseCategories.map((c) => ({ value: c.id, label: c.name })),
+    ],
+    [expenseCategories]
+  );
+
+  const typeIdsForCategory = useMemo(
+    () =>
+      selectedCategory === "all"
+        ? null
+        : expenseTypes.filter((t) => t.categoryId === selectedCategory).map((t) => t.id),
+    [selectedCategory, expenseTypes]
+  );
+
+  const allItems = useAppSelector((state) => state.expenses.items);
+
+  const filteredItems = useMemo(() => {
+    if (typeIdsForCategory === null) return allItems;
+    return allItems.filter(
+      (e) =>
+        e.type === "expense" &&
+        e.expenseTypeId &&
+        typeIdsForCategory.includes(e.expenseTypeId)
+    );
+  }, [allItems, typeIdsForCategory]);
+
+  const showDaily = !viewAllMonths;
+  const monthNum = selectedMonth;
+  const daysInMonth = new Date(selectedYear, monthNum, 0).getDate();
+
+  const dailyData = useMemo(() => {
+    if (!showDaily) return [];
+    const byDay = new Map<number, number>();
+    for (let d = 1; d <= daysInMonth; d++) byDay.set(d, 0);
+    for (const e of filteredItems) {
+      if (e.type !== "expense" || e.year !== selectedYear || e.month !== monthNum) continue;
+      const day = new Date(e.date).getDate();
+      byDay.set(day, (byDay.get(day) ?? 0) + e.amount);
+    }
+    return Array.from({ length: daysInMonth }, (_, i) => ({
+      day: i + 1,
+      credit: byDay.get(i + 1) ?? 0,
+    }));
+  }, [showDaily, filteredItems, selectedYear, monthNum, daysInMonth]);
+
+  const monthlyData = useMemo(() => {
+    const expenseForYear = filteredItems.filter((e) => e.year === selectedYear);
+    return Array.from({ length: 12 }, (_, i) => {
+      const m = i + 1;
+      const debit =
+        selectedCategory === "all"
+          ? (budgetDebitByMonth[m] ?? 0)
+          : budgetItemsForYear
+              .filter((b) => b.month === m && b.categoryId === selectedCategory)
+              .reduce((s, b) => s + b.amount, 0);
+      const credit = expenseForYear.filter((e) => e.month === m).reduce((s, e) => s + e.amount, 0);
+      return {
+        month: m,
+        debit,
+        credit,
+        label: MONTH_LABELS[i] ?? "",
+      };
+    });
+  }, [filteredItems, selectedYear, budgetDebitByMonth, budgetItemsForYear, selectedCategory]);
+
   useEffect(() => {
     setSelectedYear(currentYear);
     setSelectedMonth(currentMonth);
@@ -96,30 +163,6 @@ export function CreditDebitChartSection() {
     else document.body.style.overflow = "";
     return () => { document.body.style.overflow = ""; };
   }, [filterModalOpen]);
-
-  const monthlyData = useAppSelector((state) =>
-    selectMonthlyCreditDebitForYear(
-      state,
-      selectedYear,
-      selectedCategory === "all" ? undefined : selectedCategory
-    )
-  );
-
-  const showDaily = !viewAllMonths;
-  const monthNum = selectedMonth;
-  const monthlyDebitForSelectedMonth =
-    monthlyData.find((x) => x.month === monthNum)?.debit ?? 0;
-
-  const dailyData = useAppSelector((state) =>
-    showDaily
-      ? selectDailyCreditForMonth(
-          state,
-          selectedYear,
-          monthNum,
-          selectedCategory === "all" ? undefined : selectedCategory
-        )
-      : []
-  );
 
   const barRadius = 8;
   const finalChartData = useMemo(() => {
@@ -161,6 +204,21 @@ export function CreditDebitChartSection() {
     };
   }, [showDaily, monthlyData, dailyData, isDark]);
 
+  const chartYMax = useMemo(() => {
+    const MONTHLY_DEFAULT_MAX = 15000; // 15k for single month (daily) chart
+    const YEARLY_DEFAULT_MAX = 50000; // 50k for yearly debit/credit chart
+    if (showDaily) {
+      const dataMax = dailyData.length ? Math.max(...dailyData.map((x) => x.credit)) : 0;
+      return Math.max(MONTHLY_DEFAULT_MAX, dataMax);
+    }
+    const dataMax = monthlyData.length
+      ? Math.max(
+          ...monthlyData.flatMap((x) => [x.debit, x.credit])
+        )
+      : 0;
+    return Math.max(YEARLY_DEFAULT_MAX, dataMax);
+  }, [showDaily, dailyData, monthlyData]);
+
   const options: ChartOptions<"bar"> = useMemo(
     () => ({
       responsive: true,
@@ -174,6 +232,8 @@ export function CreditDebitChartSection() {
         },
         y: {
           stacked: false,
+          min: 0,
+          max: chartYMax,
           grid: { color: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)" },
           ticks: {
             color: isDark ? "#94a3b8" : "#64748b",
@@ -196,13 +256,13 @@ export function CreditDebitChartSection() {
         },
       },
     }),
-    [isDark]
+    [isDark, chartYMax]
   );
 
   const filterContent = (
     <>
       <SelectDropdown
-        options={CATEGORY_OPTIONS}
+        options={categoryOptions}
         value={selectedCategory}
         onChange={(v) => setSelectedCategory(String(v))}
         label=""
@@ -229,19 +289,6 @@ export function CreditDebitChartSection() {
         />
         <span className={isDark ? "text-slate-300" : "text-slate-700"}>All months</span>
       </label>
-      {showDaily && (
-        <div
-          className={cn(
-            "flex h-11 min-w-0 items-center justify-end gap-1.5 rounded-xl border px-3 sm:min-w-[140px] sm:px-4",
-            isDark ? "border-white/10 bg-white/5" : "border-[#ddd] bg-slate-50"
-          )}
-        >
-          <span className="text-xs text-slate-500 dark:text-slate-400">Income:</span>
-          <span className="text-sm font-bold text-slate-800 dark:text-white">
-            {formatK(monthlyDebitForSelectedMonth)} ৳
-          </span>
-        </div>
-      )}
     </>
   );
 
@@ -314,7 +361,7 @@ export function CreditDebitChartSection() {
           <SectionSubtitle>
             {showDaily
               ? `Daily credit (expense) for ${MONTH_OPTIONS.find((m) => m.value === selectedMonth)?.label} ${selectedYear}`
-              : `Monthly credit & debit for ${selectedYear}`}
+              : `Month-wise debit (income) and credit (expense) for ${selectedYear}`}
           </SectionSubtitle>
         </div>
         {/* Right: mobile filter icon / desktop filters */}

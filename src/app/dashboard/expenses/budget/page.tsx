@@ -3,21 +3,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useAppSelector } from "@/store/hooks";
-import {
-  selectBudgetDebitForMonth,
-  selectBudgetItemsForMonth,
-  selectMonthlySummaryForMonth,
-} from "@/store/slices/expensesSlice";
+import { selectMonthlySummaryForMonth } from "@/store/slices/expensesSlice";
+import { useBudgetDebit, useBudgetItems } from "@/lib/firebase/budget";
 import { BudgetRoundChart } from "@/blocks/components/BudgetRoundChart";
 import { BudgetItemTableSection } from "@/blocks/sections/BudgetItemTableSection";
 import { Button } from "@/blocks/elements/Button";
 import { MonthYearDatePicker } from "@/blocks/components/MonthYearDatePicker";
-import type { SelectOption } from "@/blocks/components/shared/SelectDropdown";
+import { SelectDropdown, type SelectOption } from "@/blocks/components/shared/SelectDropdown";
+import { useExpenseCategories } from "@/lib/firebase/expenses";
 import { useStartYear } from "@/hooks/useStartYear";
 import { useClientDate } from "@/hooks/useClientDate";
 import { Wallet, Plus } from "lucide-react";
 import { AddDebitAmountModal } from "@/blocks/components/AddDebitAmountModal";
 import { AddBudgetItemModal } from "@/blocks/components/AddBudgetItemModal";
+import { formatMoneyK } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { Skeleton } from "@/blocks/elements/Skeleton";
 
 const MONTH_OPTIONS: SelectOption[] = [
   { value: 1, label: "January" },
@@ -48,6 +49,22 @@ export default function MonthlyBudgetPage() {
 
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState<number>(currentMonth0 + 1);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
+
+  const { categories } = useExpenseCategories();
+  const categoryOptions: SelectOption[] = useMemo(
+    () => categories.map((c) => ({ value: c.id, label: c.name })),
+    [categories]
+  );
+
+  /** Default to first category in list when categories load; keep selection if still in list */
+  useEffect(() => {
+    if (categories.length === 0) return;
+    const firstId = categories[0]?.id ?? "";
+    setSelectedCategoryId((prev) =>
+      prev && categories.some((c) => c.id === prev) ? prev : firstId
+    );
+  }, [categories]);
 
   useEffect(() => {
     if (!isClient) return;
@@ -58,14 +75,29 @@ export default function MonthlyBudgetPage() {
     return () => clearTimeout(id);
   }, [isClient, currentYear, currentMonth0]);
 
-  const budgetDebit = useAppSelector((s) =>
-    selectBudgetDebitForMonth(s, selectedYear, selectedMonth)
+  const { debit: budgetDebit, setDebit, loading: budgetDebitLoading } = useBudgetDebit(
+    selectedYear,
+    selectedMonth
   );
+  const {
+    items: budgetItemsAll,
+    loading: budgetItemsLoading,
+    addItem,
+    updateItem,
+    deleteItem,
+  } = useBudgetItems(selectedYear, selectedMonth);
+
+  const budgetChartsLoading = budgetDebitLoading || budgetItemsLoading;
   const monthlySummary = useAppSelector((s) =>
     selectMonthlySummaryForMonth(s, selectedYear, selectedMonth)
   );
-  const budgetItems = useAppSelector((s) =>
-    selectBudgetItemsForMonth(s, selectedYear, selectedMonth)
+
+  const budgetItems = useMemo(
+    () =>
+      selectedCategoryId
+        ? budgetItemsAll.filter((b) => b.categoryId === selectedCategoryId)
+        : budgetItemsAll,
+    [budgetItemsAll, selectedCategoryId]
   );
 
   const debit = budgetDebit ?? monthlySummary?.totalIncome ?? 0;
@@ -93,16 +125,7 @@ export default function MonthlyBudgetPage() {
             Debit = total maser taka, Credit = daily budget items total, Balance = baki.
           </p>
         </div>
-        <div className="flex w-full min-w-0 flex-col gap-3 sm:ml-auto sm:w-auto sm:flex-row sm:flex-wrap sm:shrink-0 sm:items-center">
-          <MonthYearDatePicker
-            years={years}
-            year={selectedYear}
-            month={selectedMonth}
-            onYearChange={setSelectedYear}
-            onMonthChange={setSelectedMonth}
-            label=""
-            className="w-full min-w-0 sm:w-auto sm:min-w-[140px]"
-          />
+        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:gap-3">
           <Button
             type="button"
             size="default"
@@ -126,29 +149,39 @@ export default function MonthlyBudgetPage() {
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <BudgetRoundChart
-          label="Total Debit"
-          value={debit}
-          ringColor="text-violet-500 dark:text-violet-400"
-          fillRatio={1}
-          subtitle={`${selectedMonthLabel} ${selectedYear}`}
-        />
-        <BudgetRoundChart
-          label="Total Credit"
-          value={credit}
-          ringColor="text-red-500 dark:text-red-400"
-          fillRatio={1}
-          subtitle="Expense"
-        />
-        <BudgetRoundChart
-          label="Balance"
-          value={balance}
-          ringColor={
-            balance >= 0 ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400"
-          }
-          fillRatio={balance >= 0 ? balanceRatio : 1}
-          subtitle="Debit − Credit"
-        />
+        {budgetChartsLoading ? (
+          <>
+            <Skeleton className="aspect-square w-full max-w-[200px] rounded-full justify-self-center" />
+            <Skeleton className="aspect-square w-full max-w-[200px] rounded-full justify-self-center" />
+            <Skeleton className="aspect-square w-full max-w-[200px] rounded-full justify-self-center" />
+          </>
+        ) : (
+          <>
+            <BudgetRoundChart
+              label="Total Debit"
+              value={debit}
+              ringColor="text-violet-500 dark:text-violet-400"
+              fillRatio={1}
+              subtitle={`${selectedMonthLabel} ${selectedYear}`}
+            />
+            <BudgetRoundChart
+              label="Total Credit"
+              value={credit}
+              ringColor="text-red-500 dark:text-red-400"
+              fillRatio={1}
+              subtitle="Expense"
+            />
+            <BudgetRoundChart
+              label="Balance"
+              value={balance}
+              ringColor={
+                balance >= 0 ? "text-emerald-500 dark:text-emerald-400" : "text-red-500 dark:text-red-400"
+              }
+              fillRatio={balance >= 0 ? balanceRatio : 1}
+              subtitle="Debit − Credit"
+            />
+          </>
+        )}
       </div>
 
       <AddDebitAmountModal
@@ -156,15 +189,60 @@ export default function MonthlyBudgetPage() {
         onClose={() => setDebitModalOpen(false)}
         year={selectedYear}
         month={selectedMonth}
+        currentAmount={budgetDebit ?? undefined}
+        onSave={setDebit}
       />
       <AddBudgetItemModal
         open={budgetModalOpen}
         onClose={() => setBudgetModalOpen(false)}
         year={selectedYear}
         month={selectedMonth}
+        categoryId={selectedCategoryId}
+        onAdd={async (data) => {
+          await addItem(data);
+        }}
       />
 
-      <BudgetItemTableSection year={selectedYear} month={selectedMonth} />
+      <BudgetItemTableSection
+        year={selectedYear}
+        month={selectedMonth}
+        categoryId={selectedCategoryId}
+        items={budgetItems}
+        loading={budgetItemsLoading}
+        onDeleteItem={deleteItem}
+        onUpdateItem={async (item) => {
+          await updateItem(item.id, {
+            name: item.name,
+            amount: item.amount,
+            year: item.year,
+            month: item.month,
+            categoryId: item.categoryId,
+            expenseTypeId: item.expenseTypeId,
+          });
+        }}
+        headerRight={
+          <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+            <MonthYearDatePicker
+              years={years}
+              year={selectedYear}
+              month={selectedMonth}
+              onYearChange={setSelectedYear}
+              onMonthChange={setSelectedMonth}
+              label=""
+              className="w-full min-w-0 sm:w-auto sm:min-w-[140px]"
+            />
+            {categoryOptions.length > 0 && (
+              <SelectDropdown
+                options={categoryOptions}
+                value={selectedCategoryId}
+                onChange={(v) => setSelectedCategoryId(String(v))}
+                label=""
+                className="w-full min-w-0 sm:w-auto sm:min-w-[140px]"
+              />
+            )}
+          </div>
+        }
+      />
     </motion.div>
   );
 }

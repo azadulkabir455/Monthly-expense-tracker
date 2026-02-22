@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { addExpenseType, selectExpenseCategories } from "@/store/slices/expensesSlice";
+import { toast } from "sonner";
+import { useExpenseCategories, useExpenseTypes } from "@/lib/firebase/expenses";
+import { getWishlistErrorMessage } from "@/lib/firebase/wishlist/errors";
 import {
   Card,
   CardContent,
@@ -26,17 +27,17 @@ interface AddExpenseTypeModalProps {
 }
 
 export function AddExpenseTypeModal({ open, onClose }: AddExpenseTypeModalProps) {
-  const dispatch = useAppDispatch();
-  const categories = useAppSelector(selectExpenseCategories);
+  const { categories } = useExpenseCategories();
+  const { addType } = useExpenseTypes();
   const { theme } = useThemeContext();
   const isDark = theme === "dark";
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
 
-  const categoryOptions: SelectOption[] = categories.map((c) => ({
-    value: c.id,
-    label: c.name,
-  }));
+  const categoryOptions: SelectOption[] = useMemo(
+    () => categories.map((c) => ({ value: c.id, label: c.name })),
+    [categories]
+  );
 
   useEffect(() => {
     if (open) {
@@ -59,14 +60,16 @@ export function AddExpenseTypeModal({ open, onClose }: AddExpenseTypeModalProps)
     };
   }, [open, onClose]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !categoryId) return;
-    dispatch(addExpenseType({
-      name: name.trim(),
-      categoryId,
-    }));
-    onClose();
+    try {
+      await addType({ name: name.trim(), categoryId });
+      toast.success("Expense type added.");
+      onClose();
+    } catch (err) {
+      toast.error(getWishlistErrorMessage(err, "add", "expenseType"));
+    }
   };
 
   if (!open) return null;

@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useAppDispatch } from "@/store/hooks";
-import { addExpenseCategory } from "@/store/slices/expensesSlice";
+import { toast } from "sonner";
 import type { ExpenseCategoryIconType, GradientPresetId } from "@/types/expenseCategory";
 import { GRADIENT_PRESETS } from "@/types/expenseCategory";
+import { getWishlistErrorMessage } from "@/lib/firebase/wishlist/errors";
 import {
   Card,
   CardContent,
@@ -25,17 +25,18 @@ import { useThemeContext } from "@/context/ThemeContext";
 interface AddExpenseCategoryModalProps {
   open: boolean;
   onClose: () => void;
+  onAdd: (name: string, icon: string, gradientPreset: string) => Promise<void>;
 }
 
 const GRADIENT_IDS = Object.keys(GRADIENT_PRESETS) as GradientPresetId[];
 
-export function AddExpenseCategoryModal({ open, onClose }: AddExpenseCategoryModalProps) {
-  const dispatch = useAppDispatch();
+export function AddExpenseCategoryModal({ open, onClose, onAdd }: AddExpenseCategoryModalProps) {
   const { theme } = useThemeContext();
   const isDark = theme === "dark";
   const [name, setName] = useState("");
   const [icon, setIcon] = useState<ExpenseCategoryIconType>("home");
   const [gradientPreset, setGradientPreset] = useState<GradientPresetId>("violet");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -59,11 +60,19 @@ export function AddExpenseCategoryModal({ open, onClose }: AddExpenseCategoryMod
     };
   }, [open, onClose]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
-    dispatch(addExpenseCategory({ name: name.trim(), icon, gradientPreset }));
-    onClose();
+    if (!name.trim() || submitting) return;
+    setSubmitting(true);
+    try {
+      await onAdd(name.trim(), icon, gradientPreset);
+      toast.success("Expense category added.");
+      onClose();
+    } catch (err) {
+      toast.error(getWishlistErrorMessage(err, "add", "expenseCategory"));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (!open) return null;
@@ -132,8 +141,8 @@ export function AddExpenseCategoryModal({ open, onClose }: AddExpenseCategoryMod
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-2 sm:flex-row">
-            <Button type="submit" className="w-full sm:w-auto">
-              Add Category
+            <Button type="submit" className="w-full sm:w-auto" disabled={submitting}>
+              {submitting ? "Adding…" : "Add Category"}
             </Button>
             <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={onClose}>
               Cancel

@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useAppSelector, useAppDispatch } from "@/store/hooks";
-import { selectExpenseTypes, selectExpenseCategories, removeExpenseType } from "@/store/slices/expensesSlice";
+import { useState, useEffect, useMemo } from "react";
+import { toast } from "sonner";
+import { useExpenseCategories, useExpenseTypes } from "@/lib/firebase/expenses";
+import { getWishlistErrorMessage } from "@/lib/firebase/wishlist/errors";
 import type { ExpenseType } from "@/types/expenseCategory";
+import { GRADIENT_PRESETS } from "@/types/expenseCategory";
 import {
   SectionCard,
   SectionHeader,
@@ -15,18 +17,32 @@ import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
 import { EditExpenseTypeModal } from "@/blocks/components/EditExpenseTypeModal";
 import { ConfirmModal } from "@/blocks/components/shared/ConfirmModal";
+import { Skeleton } from "@/blocks/elements/Skeleton";
 
-export function ExpenseTypeListSection() {
-  const dispatch = useAppDispatch();
+interface ExpenseTypeListSectionProps {
+  selectedCategoryId: string;
+}
+
+export function ExpenseTypeListSection({
+  selectedCategoryId,
+}: ExpenseTypeListSectionProps) {
   const { theme } = useThemeContext();
   const isDark = theme === "dark";
-  const types = useAppSelector(selectExpenseTypes);
-  const categories = useAppSelector(selectExpenseCategories);
+  const { categories, loading: categoriesLoading } = useExpenseCategories();
+  const { types: allTypes, loading: typesLoading, deleteType } = useExpenseTypes();
   const [editingType, setEditingType] = useState<ExpenseType | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
-    const [deleteTarget, setDeleteTarget] = useState<ExpenseType | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ExpenseType | null>(null);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [openActionId, setOpenActionId] = useState<string | null>(null);
+
+  const types = useMemo(
+    () =>
+      selectedCategoryId
+        ? allTypes.filter((t) => t.categoryId === selectedCategoryId)
+        : allTypes,
+    [allTypes, selectedCategoryId]
+  );
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -47,10 +63,15 @@ export function ExpenseTypeListSection() {
     setConfirmModalOpen(true);
   };
 
-  const handleConfirmDelete = () => {
-    if (deleteTarget) {
-      dispatch(removeExpenseType(deleteTarget.id));
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteType(deleteTarget.id);
+      toast.success("Expense type deleted.");
+      setConfirmModalOpen(false);
       setDeleteTarget(null);
+    } catch (err) {
+      toast.error(getWishlistErrorMessage(err, "delete", "expenseType"));
     }
   };
 
@@ -59,10 +80,28 @@ export function ExpenseTypeListSection() {
       <SectionHeader>
         <div>
           <SectionTitle>Type List</SectionTitle>
-          <SectionSubtitle>All expense types — same flow as wish category.</SectionSubtitle>
+          <SectionSubtitle>All expense types — filter by category above.</SectionSubtitle>
         </div>
       </SectionHeader>
 
+      {(categoriesLoading || typesLoading) ? (
+        <ul className="space-y-2 sm:space-y-3 overflow-visible">
+          {[1, 2, 3, 4].map((i) => (
+            <li
+              key={i}
+              className={cn(
+                "flex items-center gap-3 rounded-xl border px-4 py-3",
+                isDark ? "border-white/10 bg-white/5" : "border-slate-100 bg-slate-50/60"
+              )}
+            >
+              <Skeleton className="h-6 w-6 shrink-0 rounded" />
+              <Skeleton className="h-5 flex-1 max-w-[120px]" />
+              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
+            </li>
+          ))}
+        </ul>
+      ) : (
       <ul className="space-y-2 sm:space-y-3 overflow-visible">
         {types.map((t) => {
           const cat = categories.find((c) => c.id === t.categoryId);
@@ -82,7 +121,14 @@ export function ExpenseTypeListSection() {
                 {t.name}
               </span>
               {cat && (
-                <span className="text-xs text-muted-foreground">{cat.name}</span>
+                <span
+                  className="mt-1.5 inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium text-white"
+                  style={{
+                    background: `linear-gradient(135deg, ${GRADIENT_PRESETS[cat.gradientPreset]?.fromColor ?? "#8b5cf6"}, ${GRADIENT_PRESETS[cat.gradientPreset]?.toColor ?? "#d946ef"})`,
+                  }}
+                >
+                  {cat.name}
+                </span>
               )}
             </div>
             <div data-expense-type-action-menu className="relative flex shrink-0 items-center gap-1">
@@ -167,10 +213,11 @@ export function ExpenseTypeListSection() {
           );
         })}
       </ul>
+      )}
 
-      {types.length === 0 && (
+      {!categoriesLoading && !typesLoading && types.length === 0 && (
         <p className={cn("py-8 text-center text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
-          No expense types yet. Add one above.
+          {selectedCategoryId ? "No types in this category." : "No expense types yet. Add one above."}
         </p>
       )}
 

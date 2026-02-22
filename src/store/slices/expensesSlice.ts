@@ -51,9 +51,9 @@ const DEMO_YEAR = demoDate.getFullYear();
 const DEMO_MONTH = demoDate.getMonth() + 1;
 
 const DEMO_BUDGET_ITEMS: BudgetItem[] = [
-  { id: "b1", name: "House Rent", amount: 12000, year: DEMO_YEAR, month: DEMO_MONTH },
-  { id: "b2", name: "Bazar", amount: 8000, year: DEMO_YEAR, month: DEMO_MONTH },
-  { id: "b3", name: "Utilities", amount: 2500, year: DEMO_YEAR, month: DEMO_MONTH },
+  { id: "b1", name: "House Rent", amount: 12000, year: DEMO_YEAR, month: DEMO_MONTH, categoryId: "house" },
+  { id: "b2", name: "Bazar", amount: 8000, year: DEMO_YEAR, month: DEMO_MONTH, categoryId: "house" },
+  { id: "b3", name: "Utilities", amount: 2500, year: DEMO_YEAR, month: DEMO_MONTH, categoryId: "house" },
 ];
 
 const DEMO_EXPENSE_CATEGORIES: ExpenseCategory[] = [
@@ -206,6 +206,14 @@ const expensesSlice = createSlice({
       const key = monthKey(action.payload.year, action.payload.month);
       state.budgetDebitByMonth[key] = action.payload.amount;
     },
+    /** Set expense items from Firestore (replaces items for synced user data) */
+    setExpenseItems: (state, action: PayloadAction<Expense[]>) => {
+      state.items = action.payload;
+    },
+    /** Add a single expense (e.g. optimistic update after Firestore add) */
+    addExpenseItem: (state, action: PayloadAction<Expense>) => {
+      state.items.push(action.payload);
+    },
     /** Hydrate from demo.json - use for local development without backend */
     hydrateFromDemo: (
       state,
@@ -232,6 +240,7 @@ export const {
   addExpense,
   removeExpense,
   updateExpense,
+  addExpenseItem,
   addExpenseCategory,
   updateExpenseCategory,
   removeExpenseCategory,
@@ -242,6 +251,7 @@ export const {
   updateBudgetItem,
   removeBudgetItem,
   setBudgetDebitForMonth,
+  setExpenseItems,
   hydrateFromDemo,
 } = expensesSlice.actions;
 
@@ -258,9 +268,15 @@ export function selectBudgetDebitForMonth(
 export function selectBudgetItemsForMonth(
   state: { expenses: ExpensesState },
   year: number,
-  month: number
+  month: number,
+  categoryId?: string
 ): BudgetItem[] {
-  return state.expenses.budgetItems.filter((b) => b.year === year && b.month === month);
+  return state.expenses.budgetItems.filter(
+    (b) =>
+      b.year === year &&
+      b.month === month &&
+      (categoryId == null || categoryId === "" || b.categoryId === categoryId)
+  );
 }
 
 /** All budget items (for migration/legacy - prefer selectBudgetItemsForMonth) */
