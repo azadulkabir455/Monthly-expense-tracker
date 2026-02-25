@@ -223,11 +223,11 @@ export function CategoryWiseSummarySection() {
                     </div>
                   </div>
 
-                  {/* Stats: month 3 letters, month 3 letters, Due, month 3 letters – 2×2 */}
+                  {/* Stats: debit, cost, transaction, month – 2×2 */}
                   <div className="mt-2 grid grid-cols-2 gap-1.5 sm:mt-3 sm:gap-2">
                     <div className="rounded-lg bg-white/15 px-1.5 py-1 sm:px-2 sm:py-1.5">
                       <p className="truncate text-[10px] font-medium capitalize tracking-wider opacity-90 sm:text-xs">
-                        {monthShort}
+                        debit
                       </p>
                       <p className="truncate text-xs font-semibold sm:text-sm">
                         {formatMoneyK(item.debit)}
@@ -235,7 +235,7 @@ export function CategoryWiseSummarySection() {
                     </div>
                     <div className="rounded-lg bg-white/15 px-1.5 py-1 sm:px-2 sm:py-1.5">
                       <p className="truncate text-[10px] font-medium capitalize tracking-wider opacity-90 sm:text-xs">
-                        {monthShort}
+                        cost
                       </p>
                       <p className="truncate text-xs font-semibold sm:text-sm">
                         {formatMoneyK(item.credit)}
@@ -243,7 +243,7 @@ export function CategoryWiseSummarySection() {
                     </div>
                     <div className="rounded-lg bg-white/15 px-1.5 py-1 sm:px-2 sm:py-1.5">
                       <p className="truncate text-[10px] font-medium capitalize tracking-wider opacity-90 sm:text-xs">
-                        Due
+                        budget
                       </p>
                       <p className="truncate text-xs font-semibold sm:text-sm">
                         {formatMoneyK(item.due, { withSign: true })}
@@ -251,7 +251,7 @@ export function CategoryWiseSummarySection() {
                     </div>
                     <div className="rounded-lg bg-white/15 px-1.5 py-1 sm:px-2 sm:py-1.5">
                       <p className="truncate text-[10px] font-medium capitalize tracking-wider opacity-90 sm:text-xs">
-                        {monthShort}
+                        transaction
                       </p>
                       <p className="truncate text-xs font-semibold sm:text-sm">
                         {item.monthTransaction}

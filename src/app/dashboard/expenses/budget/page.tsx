@@ -201,6 +201,9 @@ export default function MonthlyBudgetPage() {
         year={selectedYear}
         month={selectedMonth}
         categoryId={selectedCategoryId}
+        existingBudgetTypeIds={budgetItemsAll
+          .filter((b) => b.categoryId === selectedCategoryId && b.expenseTypeId)
+          .map((b) => b.expenseTypeId!)}
         onAdd={async (data) => {
           await addItem(data);
         }}

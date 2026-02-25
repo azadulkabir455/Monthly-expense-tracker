@@ -5,7 +5,6 @@ import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { useExpenseCategories, useExpenseTypes } from "@/lib/firebase/expenses";
 import { getWishlistErrorMessage } from "@/lib/firebase/wishlist/errors";
-import { MAIN_EXPENSE_CATEGORIES } from "@/types/expense";
 import type { ExpenseType } from "@/types/expenseCategory";
 import { SelectDropdown, type SelectOption } from "@/blocks/components/shared/SelectDropdown";
 import {
@@ -36,23 +35,16 @@ export function EditExpenseTypeModal({ expenseType, open, onClose }: EditExpense
   const isDark = theme === "dark";
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
-  const [mainCategoryId, setMainCategoryId] = useState("");
 
   const categoryOptions: SelectOption[] = useMemo(
     () => categories.map((c) => ({ value: c.id, label: c.name })),
     [categories]
   );
 
-  const mainCategoryOptions: SelectOption[] = MAIN_EXPENSE_CATEGORIES.map((c) => ({
-    value: c.id,
-    label: c.label,
-  }));
-
   useEffect(() => {
     if (expenseType) {
       setName(expenseType.name);
       setCategoryId(expenseType.categoryId ?? categories[0]?.id ?? "");
-      setMainCategoryId(expenseType.mainCategoryId ?? MAIN_EXPENSE_CATEGORIES[0]?.id ?? "");
     }
   }, [expenseType, categories]);
 
@@ -77,7 +69,6 @@ export function EditExpenseTypeModal({ expenseType, open, onClose }: EditExpense
       await updateType(expenseType.id, {
         name: name.trim(),
         categoryId,
-        mainCategoryId: mainCategoryId || undefined,
       });
       toast.success("Expense type updated.");
       onClose();
@@ -124,16 +115,6 @@ export function EditExpenseTypeModal({ expenseType, open, onClose }: EditExpense
                 options={categoryOptions}
                 value={categoryId}
                 onChange={(v) => setCategoryId(String(v))}
-                label=""
-                className="w-full"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Main Category (for filter)</Label>
-              <SelectDropdown
-                options={mainCategoryOptions}
-                value={mainCategoryId}
-                onChange={(v) => setMainCategoryId(String(v))}
                 label=""
                 className="w-full"
               />

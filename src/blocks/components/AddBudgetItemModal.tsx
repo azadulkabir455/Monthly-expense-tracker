@@ -27,6 +27,8 @@ interface AddBudgetItemModalProps {
   year: number;
   month: number;
   categoryId: string;
+  /** Expense type IDs already in the budget list for this month (same category). These will be disabled in the dropdown. */
+  existingBudgetTypeIds?: string[];
   onAdd: (data: {
     name: string;
     amount: number;
@@ -37,7 +39,7 @@ interface AddBudgetItemModalProps {
   }) => Promise<void>;
 }
 
-export function AddBudgetItemModal({ open, onClose, year, month, categoryId, onAdd }: AddBudgetItemModalProps) {
+export function AddBudgetItemModal({ open, onClose, year, month, categoryId, existingBudgetTypeIds = [], onAdd }: AddBudgetItemModalProps) {
   const { categories } = useExpenseCategories();
   const { types: expenseTypes } = useExpenseTypes();
   const { theme } = useThemeContext();
@@ -51,24 +53,33 @@ export function AddBudgetItemModal({ open, onClose, year, month, categoryId, onA
     () => expenseTypes.filter((t) => t.categoryId === categoryId),
     [expenseTypes, categoryId]
   );
+  const existingSet = useMemo(() => new Set(existingBudgetTypeIds ?? []), [existingBudgetTypeIds]);
   const typeOptions: SelectOption[] = useMemo(
-    () => typesInCategory.map((t) => ({ value: t.id, label: t.name })),
-    [typesInCategory]
+    () =>
+      typesInCategory.map((t) => ({
+        value: t.id,
+        label: t.name,
+        disabled: existingSet.has(t.id),
+      })),
+    [typesInCategory, existingSet]
   );
   const selectedTypeName = typesInCategory.find((t) => t.id === expenseTypeId)?.name ?? "";
+  const hasAnyEnabledType = typeOptions.some((o) => !o.disabled);
 
   useEffect(() => {
     if (open) {
       setAmount("");
-      setExpenseTypeId(typesInCategory[0]?.id ?? "");
+      const firstEnabled = typesInCategory.find((t) => !existingSet.has(t.id));
+      setExpenseTypeId(firstEnabled?.id ?? typesInCategory[0]?.id ?? "");
     }
-  }, [open, typesInCategory]);
+  }, [open, typesInCategory, existingSet]);
 
   useEffect(() => {
     if (open && typesInCategory.length > 0 && !expenseTypeId) {
-      setExpenseTypeId(typesInCategory[0]?.id ?? "");
+      const firstEnabled = typesInCategory.find((t) => !existingSet.has(t.id));
+      setExpenseTypeId(firstEnabled?.id ?? typesInCategory[0]?.id ?? "");
     }
-  }, [open, typesInCategory, expenseTypeId]);
+  }, [open, typesInCategory, expenseTypeId, existingSet]);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -88,6 +99,10 @@ export function AddBudgetItemModal({ open, onClose, year, month, categoryId, onA
     e.preventDefault();
     const amt = Number.parseInt(amount, 10);
     if (!expenseTypeId || Number.isNaN(amt) || amt < 0 || !categoryId) return;
+    if (existingSet.has(expenseTypeId)) {
+      toast.warning("This type is already in the budget list.");
+      return;
+    }
     try {
       await onAdd({
         name: selectedTypeName,
@@ -143,13 +158,20 @@ export function AddBudgetItemModal({ open, onClose, year, month, categoryId, onA
                 ) : null}
               </div>
               {typeOptions.length > 0 ? (
-                <SelectDropdown
-                  options={typeOptions}
-                  value={expenseTypeId}
-                  onChange={(v) => setExpenseTypeId(String(v))}
-                  label=""
-                  className="w-full"
-                />
+                <>
+                  <SelectDropdown
+                    options={typeOptions}
+                    value={expenseTypeId}
+                    onChange={(v) => setExpenseTypeId(String(v))}
+                    label=""
+                    className="w-full"
+                  />
+                  {!hasAnyEnabledType && (
+                    <p className={cn("text-sm", isDark ? "text-amber-400/90" : "text-amber-600")}>
+                      All types in this category are already in the budget list.
+                    </p>
+                  )}
+                </>
               ) : (
                 <p className={cn("text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
                   No types in this category. Add expense types first.
@@ -170,7 +192,7 @@ export function AddBudgetItemModal({ open, onClose, year, month, categoryId, onA
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-2 sm:flex-row">
-            <Button type="submit" className="w-full sm:w-auto">
+            <Button type="submit" className="w-full sm:w-auto" disabled={!hasAnyEnabledType}>
               Add
             </Button>
             <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={onClose}>

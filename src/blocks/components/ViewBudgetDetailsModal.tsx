@@ -77,22 +77,50 @@ export function ViewBudgetDetailsModal({
           </p>
           <div
             className={cn(
-              "overflow-x-auto rounded-xl border",
+              "overflow-x-auto rounded-xl border overflow-y-auto max-h-[60vh]",
               isDark ? "border-white/10" : "border-[#ddd]"
             )}
           >
             <table className="w-full min-w-[320px] text-left text-sm">
-              <thead>
+              <thead className="sticky top-0 z-20">
                 <tr
                   className={cn(
                     "border-b",
-                    isDark ? "border-white/10 bg-white/5" : "border-[#ddd] bg-slate-50/80"
+                    isDark ? "border-white/10 bg-violet-950" : "border-[#ddd] bg-slate-100"
                   )}
                 >
-                  <th className="px-4 py-3 font-semibold text-foreground">Name</th>
-                  <th className="px-4 py-3 font-semibold text-foreground text-right">Budget (৳)</th>
-                  <th className="px-4 py-3 font-semibold text-foreground text-right">Cost (৳)</th>
-                  <th className="px-4 py-3 font-semibold text-foreground text-right">Due (৳)</th>
+                  <th
+                    className={cn(
+                      "px-4 py-3 font-semibold text-foreground whitespace-nowrap",
+                      isDark ? "bg-violet-950" : "bg-slate-100"
+                    )}
+                  >
+                    Name
+                  </th>
+                  <th
+                    className={cn(
+                      "px-4 py-3 font-semibold text-foreground text-right whitespace-nowrap",
+                      isDark ? "bg-violet-950" : "bg-slate-100"
+                    )}
+                  >
+                    Budget (৳)
+                  </th>
+                  <th
+                    className={cn(
+                      "px-4 py-3 font-semibold text-foreground text-right whitespace-nowrap",
+                      isDark ? "bg-violet-950" : "bg-slate-100"
+                    )}
+                  >
+                    Cost (৳)
+                  </th>
+                  <th
+                    className={cn(
+                      "px-4 py-3 font-semibold text-foreground text-right whitespace-nowrap",
+                      isDark ? "bg-violet-950" : "bg-slate-100"
+                    )}
+                  >
+                    Due (৳)
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -125,6 +153,38 @@ export function ViewBudgetDetailsModal({
                     </tr>
                   );
                 })}
+                {items.length > 0 && (() => {
+                  const totalBudget = items.reduce((s, i) => s + i.amount, 0);
+                  const totalCost = items.reduce((s, i) => {
+                    const exp = i.expenseTypeId ? (expenseByTypeId[i.expenseTypeId] ?? 0) : 0;
+                    return s + exp;
+                  }, 0);
+                  const totalDue = totalBudget - totalCost;
+                  return (
+                    <tr
+                      className={cn(
+                        "border-t-2 font-semibold",
+                        isDark ? "border-white/10 bg-white/5" : "border-slate-200 bg-slate-50/80"
+                      )}
+                    >
+                      <td className="px-4 py-3 text-foreground">Total</td>
+                      <td className="px-4 py-3 text-right text-violet-600 dark:text-violet-400">
+                        {formatMoneyK(totalBudget)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-foreground">
+                        {formatMoneyK(totalCost)}
+                      </td>
+                      <td
+                        className={cn(
+                          "px-4 py-3 text-right",
+                          totalDue >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"
+                        )}
+                      >
+                        {formatMoneyK(totalDue, { withSign: true })}
+                      </td>
+                    </tr>
+                  );
+                })()}
               </tbody>
             </table>
           </div>

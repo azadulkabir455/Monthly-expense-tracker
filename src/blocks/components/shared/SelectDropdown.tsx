@@ -10,6 +10,8 @@ import { useThemeContext } from "@/context/ThemeContext";
 export interface SelectOption {
   value: string | number;
   label: string;
+  /** When true, option is shown but not selectable */
+  disabled?: boolean;
 }
 
 interface SelectDropdownProps {
@@ -101,19 +103,24 @@ export function SelectDropdown({
         <button
           key={String(opt.value)}
           type="button"
+          disabled={opt.disabled}
           onClick={() => {
+            if (opt.disabled) return;
             onChange(opt.value);
             setOpen(false);
           }}
           className={cn(
             "flex w-full items-center px-4 py-3 text-left text-base font-medium transition-colors",
-            opt.value === value
-              ? isDark
-                ? "bg-violet-500/25 text-white"
-                : "bg-slate-50 text-black"
-              : isDark
-                ? "text-slate-300 hover:bg-white/10 hover:text-white"
-                : "text-black hover:bg-slate-50"
+            opt.disabled &&
+              (isDark ? "cursor-not-allowed opacity-50" : "cursor-not-allowed opacity-50"),
+            !opt.disabled &&
+              (opt.value === value
+                ? isDark
+                  ? "bg-violet-500/25 text-white"
+                  : "bg-slate-50 text-black"
+                : isDark
+                  ? "text-slate-300 hover:bg-white/10 hover:text-white"
+                  : "text-black hover:bg-slate-50")
           )}
         >
           {opt.label}

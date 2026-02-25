@@ -28,7 +28,7 @@ interface AddExpenseTypeModalProps {
 
 export function AddExpenseTypeModal({ open, onClose }: AddExpenseTypeModalProps) {
   const { categories } = useExpenseCategories();
-  const { addType } = useExpenseTypes();
+  const { types, addType } = useExpenseTypes();
   const { theme } = useThemeContext();
   const isDark = theme === "dark";
   const [name, setName] = useState("");
@@ -63,8 +63,16 @@ export function AddExpenseTypeModal({ open, onClose }: AddExpenseTypeModalProps)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !categoryId) return;
+    const trimmedName = name.trim();
+    const alreadyExists = types.some(
+      (t) => t.name.trim().toLowerCase() === trimmedName.toLowerCase()
+    );
+    if (alreadyExists) {
+      toast.warning(`"${trimmedName}" already exists in the type list.`);
+      return;
+    }
     try {
-      await addType({ name: name.trim(), categoryId });
+      await addType({ name: trimmedName, categoryId });
       toast.success("Expense type added.");
       onClose();
     } catch (err) {
