@@ -31,6 +31,7 @@ function toItem(id: string, data: DocumentData): WishItem {
     priorityId: (data.priorityId as string) ?? "",
     iconType: (data.iconType as string) ?? "gift",
     categoryId: data.categoryId != null && data.categoryId !== "" ? (data.categoryId as string) : undefined,
+    done: data.done === true,
   };
 }
 
@@ -79,6 +80,7 @@ export async function updateItem(
   if (data.priorityId != null) payload.priorityId = data.priorityId;
   if (data.iconType != null) payload.iconType = data.iconType;
   if (data.categoryId !== undefined) payload.categoryId = data.categoryId ?? null;
+  if (data.done !== undefined) payload.done = data.done === true;
   if (Object.keys(payload).length === 0) return;
   await updateDoc(docRef(uid, id), payload);
 }

@@ -20,4 +20,6 @@ export interface WishItem {
   priorityId: string; // references WishPriorityType
   iconType: WishIconType;
   categoryId?: string;
+  /** When true, item is completed and shown in Done Wishlist */
+  done?: boolean;
 }

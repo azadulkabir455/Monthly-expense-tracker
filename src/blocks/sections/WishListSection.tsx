@@ -15,6 +15,9 @@ import {
   Filter,
   X,
   MoreVertical,
+  CheckCircle2,
+  ListChecks,
+  CircleDot,
 } from "lucide-react";
 import { DynamicIcon } from "lucide-react/dynamic";
 import {
@@ -69,6 +72,7 @@ export function WishListSection() {
   >(null);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [filterModalOpen, setFilterModalOpen] = useState(false);
+  const [doneWishlistModalOpen, setDoneWishlistModalOpen] = useState(false);
   const [openActionId, setOpenActionId] = useState<string | null>(null);
   const [isDesktop, setIsDesktop] = useState(false);
   const [desktopExpanded, setDesktopExpanded] = useState(false);
@@ -106,11 +110,14 @@ export function WishListSection() {
   ];
 
   const filteredWishes = allWishes.filter((w) => {
+    if (w.done) return false;
     if (searchQuery.trim() && !w.name.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
     if (filterCategoryId && w.categoryId !== filterCategoryId) return false;
     if (filterPriorityId && w.priorityId !== filterPriorityId) return false;
     return true;
   });
+
+  const doneWishes = allWishes.filter((w) => w.done);
 
   const visibleWishes = filteredWishes.slice(0, isDesktop && !desktopExpanded ? DESKTOP_MAX_WISHES : visibleCount);
   const hasMore = isDesktop && !desktopExpanded
@@ -162,6 +169,25 @@ export function WishListSection() {
   const handleDelete = (item: WishItem) => {
     setConfirmState({ type: "single", item });
     setConfirmModalOpen(true);
+  };
+
+  const handleMarkDone = async (item: WishItem) => {
+    try {
+      await updateItem(item.id, { done: true });
+      toast.success(`"${item.name}" moved to Done Wishlist.`);
+      setOpenActionId(null);
+    } catch (err) {
+      toast.error(getWishlistErrorMessage(err, "update", "wish"));
+    }
+  };
+
+  const handleMarkUndone = async (item: WishItem) => {
+    try {
+      await updateItem(item.id, { done: false });
+      toast.success(`"${item.name}" moved back to Wish List.`);
+    } catch (err) {
+      toast.error(getWishlistErrorMessage(err, "update", "wish"));
+    }
   };
 
   const handleConfirmDelete = async () => {
@@ -299,16 +325,134 @@ export function WishListSection() {
       document.body
     );
 
+  const doneWishlistModal =
+    typeof document !== "undefined" &&
+    doneWishlistModalOpen &&
+    createPortal(
+      <div
+        className="fixed inset-0 z-[100] flex items-start justify-center p-4 pt-[10vh] sm:pt-[12vh]"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="done-wishlist-title"
+      >
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDoneWishlistModalOpen(false)} aria-hidden />
+        <div
+          className={cn(
+            "relative z-10 flex w-full max-w-md flex-col min-h-[200px] max-h-[80vh] rounded-2xl shadow-float overflow-hidden",
+            isDark ? "border border-white/10 bg-violet-950/95" : "border border-[#ddd] bg-white"
+          )}
+        >
+          <div className="flex items-center justify-between px-4 py-3 border-b shrink-0 dark:border-white/10 border-[#ddd]">
+            <h2 id="done-wishlist-title" className={cn("text-lg font-semibold", isDark ? "text-white" : "text-slate-800")}>
+              Done Wishlist
+            </h2>
+            <button
+              type="button"
+              onClick={() => setDoneWishlistModalOpen(false)}
+              className={cn(
+                "rounded-lg p-2 transition",
+                isDark ? "text-slate-400 hover:bg-white/10 hover:text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              )}
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="flex-1 min-h-0 overflow-auto p-4 space-y-2 min-h-[120px]">
+            {doneWishes.length === 0 ? (
+              <p className={cn("py-6 text-center text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
+                No done items yet. Mark wishes as done from the list.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {doneWishes.map((item) => (
+                  <li
+                    key={item.id}
+                    className={cn(
+                      "flex items-center gap-3 rounded-xl border px-3 py-2.5 sm:px-4 sm:py-3",
+                      isDark ? "border-white/10 bg-white/5" : "border-slate-100 bg-slate-50/60"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                        isDark ? "bg-white/10 text-violet-300" : "bg-violet-100 text-violet-600"
+                      )}
+                    >
+                      <DynamicIcon name={item.iconType} fallback={Gift} className="h-4 w-4" strokeWidth={2} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className={cn("truncate font-medium", isDark ? "text-white" : "text-slate-800")}>{item.name}</p>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        <span
+                          className={cn(
+                            "inline-flex rounded-md px-2 py-0.5 text-xs font-medium",
+                            isDark ? "bg-amber-500/20 text-amber-300" : "bg-amber-100 text-amber-800"
+                          )}
+                        >
+                          {priorities.find((p) => p.id === item.priorityId)?.name ?? item.priorityId}
+                        </span>
+                        {item.categoryId && (
+                          <span
+                            className={cn(
+                              "inline-flex rounded-md px-2 py-0.5 text-xs font-medium",
+                              isDark ? "bg-violet-500/25 text-violet-300" : "bg-violet-100 text-violet-700"
+                            )}
+                          >
+                            {categories.find((c) => c.id === item.categoryId)?.name ?? item.categoryId}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <span className={cn("shrink-0 text-sm font-semibold", isDark ? "text-violet-300" : "text-violet-600")}>
+                      {formatMoneyK(item.approximateAmount)}
+                    </span>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleMarkUndone(item)}
+                        className={cn(
+                          "rounded-lg p-2 transition",
+                          isDark ? "text-slate-400 hover:bg-white/10 hover:text-violet-300" : "text-slate-500 hover:bg-slate-100 hover:text-violet-600"
+                        )}
+                        aria-label="Move back to Wish List"
+                        title="Undone — move back to list"
+                      >
+                        <CircleDot className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(item)}
+                        className={cn(
+                          "rounded-lg p-2 transition",
+                          isDark ? "text-slate-400 hover:bg-red-500/20 hover:text-red-400" : "text-slate-500 hover:bg-red-100 hover:text-red-600"
+                        )}
+                        aria-label="Delete"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>,
+      document.body
+    );
+
   return (
     <SectionCard>
       {filterModal}
+      {doneWishlistModal}
       <SectionHeader className="flex flex-col gap-4">
         {/* Row 1: desktop - flex space-between: title left, filters+Add right */}
         <div className="flex w-full flex-row flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 shrink-0">
             <SectionTitle>Wish List</SectionTitle>
             <SectionSubtitle>
-              {loading ? "…" : allWishes.length} item{allWishes.length !== 1 ? "s" : ""} — search, bulk delete, edit
+              {loading ? "…" : `${allWishes.filter((w) => !w.done).length} item${allWishes.filter((w) => !w.done).length !== 1 ? "s" : ""} — search, bulk delete, edit`}
             </SectionSubtitle>
           </div>
           <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-3">
@@ -375,19 +519,41 @@ export function WishListSection() {
                 <PlusCircle className="mr-1.5 h-4 w-4" />
                 Add Wish
               </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="default"
+                className="h-11 shrink-0 px-4"
+                onClick={() => setDoneWishlistModalOpen(true)}
+              >
+                <ListChecks className="mr-1.5 h-4 w-4" />
+                Done Wishlist{doneWishes.length > 0 ? ` (${doneWishes.length})` : ""}
+              </Button>
             </div>
           </div>
         </div>
-        {/* Mobile: Add Wish - niche full width */}
-        <Button
-          type="button"
-          size="default"
-          className="h-11 w-full px-4 sm:hidden"
-          onClick={() => setAddModalOpen(true)}
-        >
-          <PlusCircle className="mr-1.5 h-4 w-4" />
-          Add Wish
-        </Button>
+        {/* Mobile: Add Wish + Done Wishlist */}
+        <div className="flex w-full gap-2 sm:hidden">
+          <Button
+            type="button"
+            size="default"
+            className="h-11 flex-1 px-4"
+            onClick={() => setAddModalOpen(true)}
+          >
+            <PlusCircle className="mr-1.5 h-4 w-4" />
+            Add Wish
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="default"
+            className="h-11 flex-1 px-4"
+            onClick={() => setDoneWishlistModalOpen(true)}
+          >
+            <ListChecks className="mr-1.5 h-4 w-4" />
+            Done{doneWishes.length > 0 ? ` (${doneWishes.length})` : ""}
+          </Button>
+        </div>
       </SectionHeader>
 
       {/* Bulk delete bar */}
@@ -544,6 +710,20 @@ export function WishListSection() {
                       <button
                         type="button"
                         onClick={() => {
+                          handleMarkDone(item);
+                          setOpenActionId(null);
+                        }}
+                        className={cn(
+                          "flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition",
+                          isDark ? "text-emerald-400 hover:bg-white/10" : "text-emerald-600 hover:bg-slate-100"
+                        )}
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                        Done
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
                           handleEdit(item);
                           setOpenActionId(null);
                         }}
@@ -572,8 +752,19 @@ export function WishListSection() {
                     </div>
                   )}
                 </div>
-                {/* Desktop: edit + delete buttons */}
+                {/* Desktop: done + edit + delete buttons */}
                 <div className="hidden sm:flex sm:items-center sm:gap-1">
+                  <button
+                    type="button"
+                    onClick={() => handleMarkDone(item)}
+                    className={cn(
+                      "rounded-lg p-2 transition",
+                      isDark ? "text-emerald-400 hover:bg-white/10 hover:text-white" : "text-emerald-600 hover:bg-slate-200 hover:text-slate-800"
+                    )}
+                    aria-label="Mark as done"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                  </button>
                   <button
                     type="button"
                     onClick={() => handleEdit(item)}

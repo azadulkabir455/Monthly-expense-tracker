@@ -24,7 +24,8 @@ export function DashboardWishlistSection() {
   const { types: priorities } = useWishlistTypes();
   const priorityOrder = priorities.map((p) => ({ id: p.id, order: p.order }));
   const { items: allWishes, loading } = useWishlistItems(priorityOrder);
-  const topWishes = allWishes.slice(0, WISHLIST_LIMIT);
+  const activeWishes = allWishes.filter((w) => !w.done);
+  const topWishes = activeWishes.slice(0, WISHLIST_LIMIT);
 
   return (
     <SectionCard>
