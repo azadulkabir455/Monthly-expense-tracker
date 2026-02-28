@@ -1,4 +1,4 @@
-export { getDebit, subscribeDebit, setDebit, subscribeDebitForYear } from "./debit";
+export { getDebit, subscribeDebit, setDebit, subscribeDebitDoc, subscribeDebitForYear } from "./debit";
 export {
   subscribeBudgetItemsForMonth,
   subscribeBudgetItemsForYear,
@@ -6,4 +6,4 @@ export {
   updateBudgetItem as updateBudgetItemApi,
   deleteBudgetItem as deleteBudgetItemApi,
 } from "./items";
-export { useBudgetDebit, useBudgetDebitForYear, useBudgetItems, useBudgetItemsForYear } from "./hooks";
+export { useBudgetDebit, useBudgetDebitDoc, useBudgetDebitForYear, useBudgetItems, useBudgetItemsForYear } from "./hooks";

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase/config";
-import { subscribeDebit, subscribeDebitForYear, setDebit as setDebitApi } from "@/lib/firebase/budget/debit";
+import { subscribeDebit, subscribeDebitForYear, subscribeDebitDoc, setDebit as setDebitApi } from "@/lib/firebase/budget/debit";
 import {
   subscribeBudgetItemsForMonth,
   subscribeBudgetItemsForYear,
@@ -13,7 +13,7 @@ import {
 } from "@/lib/firebase/budget/items";
 import type { BudgetItem } from "@/types/budget";
 
-export function useBudgetDebit(year: number, month: number) {
+export function useBudgetDebit(year: number, month: number, categoryId: string) {
   const [uid, setUid] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [debit, setDebitState] = useState<number | null>(null);
@@ -29,7 +29,7 @@ export function useBudgetDebit(year: number, month: number) {
 
   useEffect(() => {
     if (!authChecked) return;
-    if (!uid) {
+    if (!uid || !categoryId) {
       setDebitState(null);
       setLoading(false);
       return;
@@ -39,6 +39,7 @@ export function useBudgetDebit(year: number, month: number) {
       uid,
       year,
       month,
+      categoryId,
       (amount) => {
         setDebitState(amount);
         setLoading(false);
@@ -46,19 +47,62 @@ export function useBudgetDebit(year: number, month: number) {
       () => setLoading(false)
     );
     return () => unsub();
-  }, [uid, authChecked, year, month]);
+  }, [uid, authChecked, year, month, categoryId]);
 
   const setDebit = async (amount: number) => {
     const user = auth.currentUser;
     if (!user) throw new Error("NOT_AUTHENTICATED");
     await user.getIdToken(true);
-    await setDebitApi(user.uid, year, month, amount);
+    await setDebitApi(user.uid, year, month, categoryId, amount);
   };
 
   return {
     debit,
     loading,
     setDebit,
+    isAuthenticated: !!uid,
+  };
+}
+
+export function useBudgetDebitDoc(year: number, month: number) {
+  const [uid, setUid] = useState<string | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [data, setData] = useState<{ amounts: Record<string, number>; legacyAmount?: number }>({ amounts: {} });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      setUid(user?.uid ?? null);
+      setAuthChecked(true);
+    });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    if (!authChecked) return;
+    if (!uid) {
+      setData({ amounts: {} });
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const unsub = subscribeDebitDoc(
+      uid,
+      year,
+      month,
+      (next) => {
+        setData(next);
+        setLoading(false);
+      },
+      () => setLoading(false)
+    );
+    return () => unsub();
+  }, [uid, authChecked, year, month]);
+
+  return {
+    amounts: data.amounts,
+    legacyAmount: data.legacyAmount,
+    loading,
     isAuthenticated: !!uid,
   };
 }

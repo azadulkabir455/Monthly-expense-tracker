@@ -64,11 +64,13 @@ export function AddExpenseTypeModal({ open, onClose }: AddExpenseTypeModalProps)
     e.preventDefault();
     if (!name.trim() || !categoryId) return;
     const trimmedName = name.trim();
-    const alreadyExists = types.some(
-      (t) => t.name.trim().toLowerCase() === trimmedName.toLowerCase()
+    const alreadyExistsInCategory = types.some(
+      (t) =>
+        t.categoryId === categoryId &&
+        t.name.trim().toLowerCase() === trimmedName.toLowerCase()
     );
-    if (alreadyExists) {
-      toast.warning(`"${trimmedName}" already exists in the type list.`);
+    if (alreadyExistsInCategory) {
+      toast.warning(`"${trimmedName}" already exists in this category.`);
       return;
     }
     try {

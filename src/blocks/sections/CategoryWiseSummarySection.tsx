@@ -243,7 +243,7 @@ export function CategoryWiseSummarySection() {
                     </div>
                     <div className="rounded-lg bg-white/15 px-1.5 py-1 sm:px-2 sm:py-1.5">
                       <p className="truncate text-[10px] font-medium capitalize tracking-wider opacity-90 sm:text-xs">
-                        budget
+                        due
                       </p>
                       <p className="truncate text-xs font-semibold sm:text-sm">
                         {formatMoneyK(item.due, { withSign: true })}

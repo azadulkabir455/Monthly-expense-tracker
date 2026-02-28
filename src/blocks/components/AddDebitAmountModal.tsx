@@ -23,7 +23,9 @@ interface AddDebitAmountModalProps {
   onClose: () => void;
   year: number;
   month: number;
-  /** Current debit amount (from Firestore) — for edit mode */
+  categoryId: string;
+  categoryName: string;
+  /** Current debit amount (from Firestore) for this category — for edit mode */
   currentAmount?: number | null;
   /** Save to Firestore (user-wise). Called with amount in ৳. */
   onSave: (amount: number) => Promise<void>;
@@ -34,6 +36,8 @@ export function AddDebitAmountModal({
   onClose,
   year,
   month,
+  categoryId,
+  categoryName,
   currentAmount,
   onSave,
 }: AddDebitAmountModalProps) {
@@ -100,7 +104,9 @@ export function AddDebitAmountModal({
             <CardTitle id="add-debit-title">
               {isEdit ? "Edit Debit Amount" : "Add Debit Amount"}
             </CardTitle>
-            <CardDescription>Monthly debit (income) amount in ৳.</CardDescription>
+            <CardDescription>
+              Monthly debit (budget) for <strong>{categoryName || "this category"}</strong> in ৳.
+            </CardDescription>
           </div>
           <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close">
             <X className="h-5 w-5" />

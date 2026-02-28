@@ -31,8 +31,9 @@ export function SelectDropdown({
 }: SelectDropdownProps) {
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
-  const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
+  const [position, setPosition] = useState({ top: 0, left: 0, right: 0, width: 0 });
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -41,18 +42,19 @@ export function SelectDropdown({
   const isDark = theme === "dark";
 
   const updatePosition = () => {
-    if (ref.current) {
-      const rect = ref.current.getBoundingClientRect();
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
       setPosition({
         top: rect.bottom + 6,
         left: rect.left,
+        right: rect.right,
         width: Math.max(rect.width, 120),
       });
     }
   };
 
   useLayoutEffect(() => {
-    if (open && ref.current) {
+    if (open && buttonRef.current) {
       updatePosition();
       window.addEventListener("scroll", updatePosition, true);
       window.addEventListener("resize", updatePosition);
@@ -89,11 +91,13 @@ export function SelectDropdown({
       style={{
         position: "fixed",
         top: position.top,
-        left: position.left,
+        right: typeof window !== "undefined" ? window.innerWidth - position.right : undefined,
+        left: typeof window !== "undefined" ? undefined : position.left,
+        maxWidth: typeof window !== "undefined" ? position.right - 16 : undefined,
         minWidth: position.width,
       }}
       className={cn(
-        "z-[100] max-h-64 overflow-auto rounded-xl border py-1 backdrop-blur-xl",
+        "z-[100] max-h-64 overflow-auto rounded-xl border py-1 backdrop-blur-xl w-max",
         isDark
           ? "border-white/20 bg-violet-950/40 shadow-elevated"
           : "border-[#ddd] bg-white shadow-elevated"
@@ -110,7 +114,7 @@ export function SelectDropdown({
             setOpen(false);
           }}
           className={cn(
-            "flex w-full items-center px-4 py-3 text-left text-base font-medium transition-colors",
+            "flex w-full min-w-0 items-center px-4 py-3 text-left text-base font-medium transition-colors whitespace-nowrap overflow-visible",
             opt.disabled &&
               (isDark ? "cursor-not-allowed opacity-50" : "cursor-not-allowed opacity-50"),
             !opt.disabled &&
@@ -142,6 +146,7 @@ export function SelectDropdown({
         </label>
       )}
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen(!open)}
         className={cn(
@@ -153,7 +158,7 @@ export function SelectDropdown({
             : "border-[#ddd] bg-white text-slate-900 shadow-sm hover:border-[#ccc] hover:bg-slate-50 focus:ring-violet-400 focus:ring-offset-white"
         )}
       >
-        <span className="truncate">{selectedLabel}</span>
+        <span className="truncate whitespace-nowrap">{selectedLabel}</span>
         <ChevronDown
           className={cn(
             "h-5 w-5 shrink-0 transition-transform",

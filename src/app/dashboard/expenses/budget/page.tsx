@@ -2,8 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { useAppSelector } from "@/store/hooks";
-import { selectMonthlySummaryForMonth } from "@/store/slices/expensesSlice";
 import { useBudgetDebit, useBudgetItems } from "@/lib/firebase/budget";
 import { BudgetRoundChart } from "@/blocks/components/BudgetRoundChart";
 import { BudgetItemTableSection } from "@/blocks/sections/BudgetItemTableSection";
@@ -77,7 +75,8 @@ export default function MonthlyBudgetPage() {
 
   const { debit: budgetDebit, setDebit, loading: budgetDebitLoading } = useBudgetDebit(
     selectedYear,
-    selectedMonth
+    selectedMonth,
+    selectedCategoryId
   );
   const {
     items: budgetItemsAll,
@@ -88,9 +87,6 @@ export default function MonthlyBudgetPage() {
   } = useBudgetItems(selectedYear, selectedMonth);
 
   const budgetChartsLoading = budgetDebitLoading || budgetItemsLoading;
-  const monthlySummary = useAppSelector((s) =>
-    selectMonthlySummaryForMonth(s, selectedYear, selectedMonth)
-  );
 
   const budgetItems = useMemo(
     () =>
@@ -100,11 +96,13 @@ export default function MonthlyBudgetPage() {
     [budgetItemsAll, selectedCategoryId]
   );
 
-  const debit = budgetDebit ?? monthlySummary?.totalIncome ?? 0;
+  const debit = budgetDebit ?? 0;
   const credit = budgetItems.reduce((s, b) => s + b.amount, 0);
   const balance = debit - credit;
 
   const hasDebitAmount = budgetDebit != null;
+
+  const selectedCategoryName = categories.find((c) => c.id === selectedCategoryId)?.name ?? "";
 
   const selectedMonthLabel = MONTH_OPTIONS.find((m) => m.value === selectedMonth)?.label ?? "";
 
@@ -131,6 +129,7 @@ export default function MonthlyBudgetPage() {
             size="default"
             className="h-11 min-w-0 flex-1 border border-[#ddd] shadow-card dark:border-white/10 sm:flex-initial"
             onClick={() => setDebitModalOpen(true)}
+            disabled={!selectedCategoryId}
           >
             <Wallet className="mr-1.5 h-4 w-4 shrink-0" />
             <span className="min-w-0 truncate">{hasDebitAmount ? "Edit Debit Amount" : "Add Debit Amount"}</span>
@@ -141,6 +140,7 @@ export default function MonthlyBudgetPage() {
             size="default"
             className="h-11 min-w-0 flex-1 border border-[#ddd] shadow-card dark:border-white/10 sm:flex-initial"
             onClick={() => setBudgetModalOpen(true)}
+            disabled={!selectedCategoryId}
           >
             <Plus className="mr-1.5 h-4 w-4 shrink-0" />
             <span className="min-w-0 truncate">Add Daily Budget</span>
@@ -192,6 +192,8 @@ export default function MonthlyBudgetPage() {
         onClose={() => setDebitModalOpen(false)}
         year={selectedYear}
         month={selectedMonth}
+        categoryId={selectedCategoryId}
+        categoryName={selectedCategoryName}
         currentAmount={budgetDebit ?? undefined}
         onSave={setDebit}
       />

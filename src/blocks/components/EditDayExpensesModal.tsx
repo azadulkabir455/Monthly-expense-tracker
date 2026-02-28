@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useAppDispatch } from "@/store/hooks";
 import {
@@ -111,6 +111,7 @@ export function EditDayExpensesModal({
   const [dayNote, setDayNote] = useState("");
   const [sectionExpandedTypeIds, setSectionExpandedTypeIds] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const itemNameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -166,9 +167,15 @@ export function EditDayExpensesModal({
   const handleAddClick = () => {
     if (!activeTypeId) return;
     ensureTypeSection(activeTypeId);
+    const alreadyExpanded = sectionExpandedTypeIds.includes(activeTypeId);
     setSectionExpandedTypeIds((prev) =>
-      prev.includes(activeTypeId) ? prev : [...prev, activeTypeId]
+      alreadyExpanded ? prev : [...prev, activeTypeId]
     );
+    if (alreadyExpanded) {
+      requestAnimationFrame(() => itemNameInputRef.current?.focus());
+    } else {
+      setTimeout(() => itemNameInputRef.current?.focus(), 50);
+    }
   };
 
   const addItem = () => {
@@ -453,6 +460,7 @@ export function EditDayExpensesModal({
                 {isActive && (
                   <div className="flex flex-wrap items-center gap-2">
                     <Input
+                      ref={itemNameInputRef}
                       placeholder="Item name (e.g. electricity, gas bill)"
                       value={addName}
                       onChange={(e) => setAddName(e.target.value)}
@@ -483,8 +491,9 @@ export function EditDayExpensesModal({
                   {list.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-1">No items yet.</p>
                   ) : (
-                    <ol className="divide-y dark:divide-white/10 list-decimal list-outside pl-6 ml-1">
-                      {list.map((item, idx) => {
+                    <>
+                      <ol className="divide-y dark:divide-white/10 list-decimal list-outside pl-6 ml-1">
+                        {list.map((item, idx) => {
                         const isEditing = editingIdx?.typeId === typeId && editingIdx?.idx === idx;
                         return (
                           <li
@@ -552,6 +561,13 @@ export function EditDayExpensesModal({
                         );
                       })}
                     </ol>
+                    <div className="mt-3 flex items-center justify-end gap-2 border-t border-[#ddd] pt-3 dark:border-white/10">
+                      <span className="text-sm font-medium text-muted-foreground">Total</span>
+                      <span className="text-base font-semibold text-violet-600 dark:text-violet-400">
+                        {list.reduce((s, i) => s + i.amount, 0)} ৳
+                      </span>
+                    </div>
+                    </>
                   )}
                 </div>
               </div>

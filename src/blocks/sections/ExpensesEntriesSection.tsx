@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { selectExpensesFiltered, removeExpense } from "@/store/slices/expensesSlice";
 import { useExpenseCategories, useExpenseTypes, useExpenseEntries } from "@/lib/firebase/expenses";
-import { useBudgetDebit, useBudgetItems } from "@/lib/firebase/budget";
+import { useBudgetDebitDoc, useBudgetItems } from "@/lib/firebase/budget";
 import { Button } from "@/blocks/elements/Button";
 import { MonthYearDatePicker } from "@/blocks/components/MonthYearDatePicker";
 import { SelectDropdown, type SelectOption } from "@/blocks/components/shared/SelectDropdown";
@@ -29,6 +29,9 @@ const MONTH_NAMES = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
+/** Stable initial date to avoid hydration mismatch (server/client time can differ) */
+const STABLE_INITIAL_DATE = new Date(2025, 0, 1);
+
 /** Default color for amount column when a category is selected */
 const DEFAULT_AMOUNT_COLOR = "text-violet-600 dark:text-violet-400";
 
@@ -40,7 +43,7 @@ export function ExpensesEntriesSection() {
   const currentMonth = currentMonth0 + 1;
   const startYear = useStartYear();
 
-  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date(STABLE_INITIAL_DATE.getTime()));
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [selectedTypeId, setSelectedTypeId] = useState<string>("");
   const [editingRowDay, setEditingRowDay] = useState<number | null>(null);
@@ -154,7 +157,7 @@ export function ExpensesEntriesSection() {
     );
   }, [baseExpensesForMonth, selectedCategoryId, typeIdsForSelectedCategory]);
 
-  const { debit: budgetDebit, loading: budgetDebitLoading } = useBudgetDebit(year, month);
+  const { amounts: debitByCategory, legacyAmount: legacyDebit, loading: budgetDebitLoading } = useBudgetDebitDoc(year, month);
   const { items: budgetItems, loading: budgetItemsLoading } = useBudgetItems(year, month);
 
   const entriesLoading =
@@ -162,15 +165,15 @@ export function ExpensesEntriesSection() {
 
   const categorySummary = useMemo(() => {
     const byCat = new Map<string, { debit: number; credit: number }>();
-    const totalDebit = budgetDebit ?? 0;
     for (const cat of expenseCategories) {
+      const debit = debitByCategory[cat.id] ?? legacyDebit ?? 0;
       const credit = budgetItems
         .filter((b) => b.categoryId === cat.id)
         .reduce((s, b) => s + b.amount, 0);
-      byCat.set(cat.id, { debit: totalDebit, credit });
+      byCat.set(cat.id, { debit, credit });
     }
     return byCat;
-  }, [expenseCategories, budgetItems, budgetDebit]);
+  }, [expenseCategories, budgetItems, debitByCategory, legacyDebit]);
 
   /** Per category: budget total (from budget list), expense this month, remaining = budget - expense */
   const categoryBudgetRemaining = useMemo(() => {
@@ -576,11 +579,11 @@ export function ExpensesEntriesSection() {
                 </div>
                 <div
                   data-expense-entry-types-popover
-                  className="flex flex-nowrap items-center justify-start gap-1 overflow-hidden p-2.5 text-left"
+                  className="flex flex-wrap items-center justify-start gap-1 p-2.5 text-left"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {/* Mobile / narrow: abbreviated "type +N" with popover for all */}
-                  <div className="flex min-w-0 flex-1 items-center gap-1 md:hidden">
+                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1 md:hidden">
                     {types.length > 0 ? (
                       types.length > 1 ? (
                         <button
@@ -594,7 +597,7 @@ export function ExpensesEntriesSection() {
                             );
                           }}
                           className={cn(
-                            "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap text-left",
+                            "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-left text-xs font-medium",
                             isDark ? "bg-violet-500/30 text-violet-200" : "bg-violet-100 text-violet-800"
                           )}
                         >
@@ -603,7 +606,7 @@ export function ExpensesEntriesSection() {
                       ) : (
                         <span
                           className={cn(
-                            "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap",
+                            "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium",
                             isDark ? "bg-violet-500/30 text-violet-200" : "bg-violet-100 text-violet-800"
                           )}
                         >
@@ -615,13 +618,13 @@ export function ExpensesEntriesSection() {
                     )}
                   </div>
                   {/* Desktop / wide: show all types */}
-                  <div className="hidden flex-nowrap items-center gap-1 overflow-hidden md:flex">
+                  <div className="hidden flex-wrap items-center gap-1 md:flex">
                     {types.length > 0 ? (
                       types.map((t) => (
                         <span
                           key={t}
                           className={cn(
-                            "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap",
+                            "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium",
                             isDark ? "bg-violet-500/30 text-violet-200" : "bg-violet-100 text-violet-800"
                           )}
                         >
