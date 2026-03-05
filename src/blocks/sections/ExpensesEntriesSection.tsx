@@ -21,7 +21,7 @@ import { useStartYear } from "@/hooks/useStartYear";
 import { GRADIENT_PRESETS } from "@/types/expenseCategory";
 import { Skeleton } from "@/blocks/elements/Skeleton";
 import { toast } from "sonner";
-import { Pencil, Plus, Trash2, MoreVertical, FolderOpen, FileSpreadsheet } from "lucide-react";
+import { Pencil, Plus, Trash2, MoreVertical, FolderOpen, FileSpreadsheet, FileText } from "lucide-react";
 import { DynamicIcon, type IconName } from "lucide-react/dynamic";
 
 const MONTH_NAMES = [
@@ -54,6 +54,7 @@ export function ExpensesEntriesSection() {
     types: string[];
     rect: DOMRect;
   } | null>(null);
+  const [notePopup, setNotePopup] = useState<{ day: number; note: string } | null>(null);
   const [viewBudgetCategoryId, setViewBudgetCategoryId] = useState<string | null>(null);
 
   const years = useMemo(
@@ -410,10 +411,12 @@ export function ExpensesEntriesSection() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
         {expenseCategories.map((cat) => {
           const preset = GRADIENT_PRESETS[cat.gradientPreset] ?? GRADIENT_PRESETS.violet;
+          const summary = categorySummary.get(cat.id) ?? { debit: 0, credit: 0 };
+          const isOverBudget = summary.credit > summary.debit;
+          const isEqual = summary.debit > 0 && summary.debit === summary.credit;
           const gradientStyle = {
             background: `linear-gradient(to bottom right, ${preset.fromColor}, ${preset.toColor})`,
           };
-          const summary = categorySummary.get(cat.id) ?? { debit: 0, credit: 0 };
           const isSelected = selectedCategoryId === cat.id;
           return (
             <div
@@ -421,11 +424,19 @@ export function ExpensesEntriesSection() {
               className={cn(
                 "flex min-w-0 flex-col overflow-hidden rounded-xl text-white shadow-float transition-all sm:rounded-2xl",
                 "ring-2 ring-white/20 ring-offset-2 ring-offset-slate-900",
-                isSelected && "ring-2 ring-white ring-offset-2 ring-offset-slate-100 dark:ring-offset-slate-900"
+                isSelected && "ring-2 ring-white ring-offset-2 ring-offset-slate-100 dark:ring-offset-slate-900",
+                isEqual && "ring-2 ring-green-400/50 ring-offset-2 ring-offset-slate-900",
+                isOverBudget && "ring-2 ring-red-400/50 ring-offset-2 ring-offset-slate-900"
               )}
               style={gradientStyle}
             >
-              <div className="flex flex-1 flex-col p-3 sm:p-4">
+              <div
+                className={cn(
+                  "flex flex-1 flex-col rounded-lg p-3 sm:p-4",
+                  isEqual && "bg-green-500/20",
+                  isOverBudget && "bg-red-500/20"
+                )}
+              >
                 {/* Row 1: Category text (icon + name) left, Baki + button right */}
                 <div className="mb-2 flex w-full items-center gap-2">
                   <button
@@ -447,11 +458,11 @@ export function ExpensesEntriesSection() {
                 <div className="grid grid-cols-2 gap-1.5">
                   <div className="rounded-lg bg-white/15 px-2 py-1.5">
                     <p className="text-[10px] font-medium uppercase tracking-wider opacity-90">Debit</p>
-                    <p className="truncate text-xs font-semibold">{formatMoneyK(summary.debit)}</p>
+                    <p className="truncate text-xs font-semibold whitespace-nowrap">{formatMoneyK(summary.debit)}</p>
                   </div>
                   <div className="rounded-lg bg-white/15 px-2 py-1.5">
-                    <p className="text-[10px] font-medium uppercase tracking-wider opacity-90">Budget</p>
-                    <p className="truncate text-xs font-semibold">{formatMoneyK(summary.credit)}</p>
+                    <p className="text-[10px] font-medium uppercase tracking-wider opacity-90">Cost</p>
+                    <p className="truncate text-xs font-semibold whitespace-nowrap">{formatMoneyK(summary.credit)}</p>
                   </div>
                 </div>
               </div>
@@ -538,7 +549,8 @@ export function ExpensesEntriesSection() {
         <div
           className={cn(
             "grid gap-0 border-b p-2.5 text-xs font-semibold",
-            "grid-cols-[minmax(85px,1fr)_minmax(120px,2.5fr)_minmax(100px,2fr)_minmax(70px,0.8fr)_minmax(70px,0.7fr)]",
+            "grid-cols-[minmax(70px,0.9fr)_minmax(60px,0.35fr)_minmax(0,2.65fr)_minmax(60px,0.7fr)_minmax(60px,0.6fr)]",
+            "md:grid-cols-[minmax(85px,1fr)_minmax(88px,1fr)_minmax(120px,2.8fr)_minmax(70px,0.8fr)_minmax(70px,0.7fr)]",
             isDark ? "border-white/10 bg-white/5" : "border-[#ddd] bg-slate-50"
           )}
         >
@@ -566,7 +578,8 @@ export function ExpensesEntriesSection() {
                 }}
                 className={cn(
                   "relative grid gap-0 cursor-pointer items-center overflow-visible p-2.5 text-sm",
-                  "grid-cols-[minmax(85px,1fr)_minmax(120px,2.5fr)_minmax(100px,2fr)_minmax(70px,0.8fr)_minmax(70px,0.7fr)]",
+                  "grid-cols-[minmax(70px,0.9fr)_minmax(60px,0.35fr)_minmax(0,2.65fr)_minmax(60px,0.7fr)_minmax(60px,0.6fr)]",
+                  "md:grid-cols-[minmax(85px,1fr)_minmax(88px,1fr)_minmax(120px,2.8fr)_minmax(70px,0.8fr)_minmax(70px,0.7fr)]",
                   isDark ? "hover:bg-white/5" : "hover:bg-slate-50/80"
                 )}
               >
@@ -574,8 +587,34 @@ export function ExpensesEntriesSection() {
                   {day} {monthLabel}{" "}
                   <span className="hidden sm:inline">{year}</span>
                 </div>
-                <div className={cn("truncate p-2.5 text-left text-sm", isDark ? "text-slate-400" : "text-slate-600")}>
-                  {dayNote || "—"}
+                {/* Note: mobile = icon only + popup; desktop = short text */}
+                <div
+                  className="flex items-center justify-center p-2.5 text-left md:justify-start"
+                  onClick={(e) => dayNote && e.stopPropagation()}
+                >
+                  <div className={cn("hidden min-w-0 flex-1 truncate text-sm md:block", isDark ? "text-slate-400" : "text-slate-600")}>
+                    {dayNote || "—"}
+                  </div>
+                  <div className="flex md:hidden">
+                    {dayNote ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setNotePopup({ day, note: dayNote });
+                        }}
+                        className={cn(
+                          "rounded-lg p-1.5 transition",
+                          isDark ? "text-violet-400 hover:bg-white/10" : "text-violet-600 hover:bg-violet-100"
+                        )}
+                        aria-label="View note"
+                      >
+                        <FileText className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <span className={cn("text-sm", isDark ? "text-slate-500" : "text-slate-400")}>—</span>
+                    )}
+                  </div>
                 </div>
                 <div
                   data-expense-entry-types-popover
@@ -636,7 +675,7 @@ export function ExpensesEntriesSection() {
                     )}
                   </div>
                 </div>
-                <div className={cn("truncate p-2.5 text-left font-medium", DEFAULT_AMOUNT_COLOR)}>
+                <div className={cn("truncate p-2.5 text-left font-medium whitespace-nowrap", DEFAULT_AMOUNT_COLOR)}>
                   {credit > 0 ? formatMoneyK(credit) : "—"}
                 </div>
                 <div data-expense-entry-action-menu className="relative flex items-center justify-start gap-1 p-2.5 text-left">
@@ -772,6 +811,34 @@ export function ExpensesEntriesSection() {
         message="Are you sure you want to delete these expenses?"
         confirmLabel="Delete"
       />
+
+      {/* Note popup (mobile): show note in popup when note icon is clicked */}
+      {notePopup != null &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            role="dialog"
+            aria-label="Note"
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+            onClick={() => setNotePopup(null)}
+          >
+            <div
+              className={cn(
+                "max-h-[60vh] max-w-sm overflow-auto rounded-xl border p-4 shadow-lg",
+                isDark ? "border-white/20 bg-violet-950/95" : "border-[#ddd] bg-white"
+              )}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <p className={cn("mb-1 text-xs font-medium", isDark ? "text-slate-400" : "text-slate-500")}>
+                Note — {notePopup.day} {monthLabel} {year}
+              </p>
+              <p className={cn("whitespace-pre-wrap text-sm", isDark ? "text-slate-200" : "text-slate-800")}>
+                {notePopup.note}
+              </p>
+            </div>
+          </div>,
+          document.body
+        )}
 
       {typesPopover != null &&
         typeof document !== "undefined" &&

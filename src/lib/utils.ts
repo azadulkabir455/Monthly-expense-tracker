@@ -28,11 +28,11 @@ export function formatMoneyK(
       minimumFractionDigits: k % 1 === 0 ? 0 : 1,
       maximumFractionDigits: 1,
     }).format(k);
-    return `${sign}${formatted}k ৳`;
+    return `${sign}${formatted}k৳`;
   }
   return (
     sign +
     new Intl.NumberFormat("en", { maximumFractionDigits: 0 }).format(abs) +
-    " ৳"
+    "৳"
   );
 }

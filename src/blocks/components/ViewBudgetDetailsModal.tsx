@@ -127,12 +127,16 @@ export function ViewBudgetDetailsModal({
                 {items.map((item) => {
                   const monthExpense = item.expenseTypeId ? (expenseByTypeId[item.expenseTypeId] ?? 0) : 0;
                   const due = item.amount - monthExpense;
+                  const isEqual = item.amount > 0 && item.amount === monthExpense;
+                  const isOver = monthExpense > item.amount;
                   return (
                     <tr
                       key={item.id}
                       className={cn(
                         "border-b last:border-b-0",
-                        isDark ? "border-white/5" : "border-slate-100"
+                        isDark ? "border-white/5" : "border-slate-100",
+                        isEqual && (isDark ? "bg-emerald-500/20" : "bg-emerald-500/15"),
+                        isOver && (isDark ? "bg-red-500/20" : "bg-red-500/15")
                       )}
                     >
                       <td className="px-4 py-3 font-medium text-foreground">{item.name}</td>
