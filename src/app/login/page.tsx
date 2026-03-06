@@ -7,7 +7,7 @@ export default function LoginPage() {
     <>
       <ThemeToggle />
       <AuthLayout
-        title="Monthly Expense Tracker"
+        title="মাসের হিসাব"
         subtitle="Sign in to manage your expenses"
       >
         <LoginFormSection />

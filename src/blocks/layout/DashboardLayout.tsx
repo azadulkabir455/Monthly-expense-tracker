@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "@/lib/firebase/auth";
 import {
@@ -181,11 +182,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           isDark ? "border-r border-white/10 bg-violet-950/20 shadow-elevated backdrop-blur-xl" : "border-r border-[#ddd] bg-white shadow-elevated"
         )}
       >
-        <div className={cn("flex h-16 shrink-0 items-center gap-3 border-b px-4", isDark ? "border-white/10" : "border-[#ddd]")}>
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-lg shadow-violet-500/25">
-            <Wallet className="h-5 w-5 text-white" />
-          </span>
-          <span className={cn("font-bold", isDark ? "text-white" : "text-slate-800")}>Expense Tracker</span>
+        <div className={cn("flex h-16 shrink-0 items-center justify-center border-b px-4", isDark ? "border-white/10" : "border-[#ddd]")}>
+          <div className="relative flex h-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-transparent">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/maserhisab.png" alt="মাসের হিসাব" className="h-9 w-auto object-contain" />
+          </div>
         </div>
         <nav className="flex-1 space-y-1 overflow-y-auto p-3">
           {nav.map((item) =>
@@ -271,12 +272,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           isDark ? "border-b border-white/10 bg-violet-950/20 shadow-elevated backdrop-blur-xl" : "border-b border-[#ddd] bg-white shadow-elevated"
         )}
       >
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 lg:hidden">
-            <Wallet className="h-4 w-4 text-white" />
+        <div className="flex items-center min-w-0">
+          <span className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white lg:hidden">
+            <Image src="/favicon.png" alt="" width={32} height={32} className="object-contain" unoptimized />
           </span>
-          <span className={cn("font-semibold truncate text-sm sm:text-base", isDark ? "text-white" : "text-slate-800")}>
-            Expense Tracker
+          <span className="relative hidden h-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white lg:flex">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/maserhisab.png" alt="মাসের হিসাব" className="h-9 w-auto object-contain" />
           </span>
         </div>
         <div className="flex shrink-0">
