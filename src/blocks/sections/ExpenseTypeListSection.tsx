@@ -86,7 +86,7 @@ export function ExpenseTypeListSection({
 
       {(categoriesLoading || typesLoading) ? (
         <ul className="space-y-2 sm:space-y-3 overflow-visible">
-          {[1, 2, 3, 4].map((i) => (
+          {Array.from({ length: Math.max(types.length || allTypes.length || 0, 2) }, (_, i) => (
             <li
               key={i}
               className={cn(

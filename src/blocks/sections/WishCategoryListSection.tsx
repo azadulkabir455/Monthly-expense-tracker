@@ -75,7 +75,7 @@ export function WishCategoryListSection() {
 
       {loading ? (
         <ul className="space-y-2 sm:space-y-3 overflow-visible">
-          {[1, 2, 3].map((i) => (
+          {Array.from({ length: Math.max(categories.length, 2) }, (_, i) => (
             <li
               key={i}
               className={cn(

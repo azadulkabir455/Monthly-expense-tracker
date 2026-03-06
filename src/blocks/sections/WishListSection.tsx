@@ -590,7 +590,7 @@ export function WishListSection() {
 
       {loading ? (
         <ul className="space-y-2 sm:space-y-3">
-          {[1, 2, 3, 4, 5].map((i) => (
+          {Array.from({ length: Math.max(visibleWishes.length, 2) }, (_, i) => (
             <li
               key={i}
               className={cn(

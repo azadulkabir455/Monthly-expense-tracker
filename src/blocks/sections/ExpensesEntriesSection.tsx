@@ -217,6 +217,21 @@ export function ExpensesEntriesSection() {
     return record;
   }, [viewBudgetCategoryId, expenseTypes, allItemsForMonth]);
 
+  /** Expense entries for the category (for View Budget modal: show per-type date-wise breakdown) */
+  const expenseEntriesForBudgetModal = useMemo(() => {
+    if (!viewBudgetCategoryId) return [];
+    const typeIds = expenseTypes
+      .filter((t) => t.categoryId === viewBudgetCategoryId)
+      .map((t) => t.id);
+    return allItemsForMonth.filter(
+      (e) =>
+        e.type === "expense" &&
+        e.expenseTypeId &&
+        typeIds.includes(e.expenseTypeId) &&
+        (e.amount !== 0 || !!e.expenseTypeId)
+    );
+  }, [viewBudgetCategoryId, expenseTypes, allItemsForMonth]);
+
   const tableRows = useMemo(() => {
     const daysInMonth = new Date(year, month, 0).getDate();
     const byDay = new Map<
@@ -403,7 +418,7 @@ export function ExpensesEntriesSection() {
       {/* Category cards: Firestore categories – name on top, debit/credit */}
       {entriesLoading ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-          {[1, 2, 3, 4, 5].map((i) => (
+          {Array.from({ length: 1 + Math.max(expenseCategories.length, 1) }, (_, i) => (
             <Skeleton key={i} className="aspect-[4/3] min-h-[100px] w-full rounded-xl sm:rounded-2xl" />
           ))}
         </div>
@@ -527,15 +542,18 @@ export function ExpensesEntriesSection() {
               </div>
             </div>
             <div className={cn("divide-y p-2.5", isDark ? "divide-white/10" : "divide-[#ddd]")}>
-              {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-                <div key={i} className="flex gap-2 py-2">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-4 flex-1 max-w-[120px]" />
-                  <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-4 w-14" />
-                  <Skeleton className="h-4 w-12" />
-                </div>
-              ))}
+              {Array.from(
+                { length: Math.min(new Date(year, month, 0).getDate(), 12) },
+                (_, i) => (
+                  <div key={i} className="flex gap-2 py-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 flex-1 max-w-[120px]" />
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-14" />
+                    <Skeleton className="h-4 w-12" />
+                  </div>
+                )
+              )}
             </div>
           </div>
         ) : (
@@ -587,14 +605,12 @@ export function ExpensesEntriesSection() {
                   {day} {monthLabel}{" "}
                   <span className="hidden sm:inline">{year}</span>
                 </div>
-                {/* Note: mobile = icon only + popup; desktop = short text */}
-                <div
-                  className="flex items-center justify-center p-2.5 text-left md:justify-start"
-                  onClick={(e) => dayNote && e.stopPropagation()}
-                >
+                {/* Note: desktop = click opens Edit. Mobile = only note icon click opens popup; tap elsewhere in note cell opens Edit. */}
+                <div className="flex items-center justify-center p-2.5 text-left md:justify-start">
                   <div className={cn("hidden min-w-0 flex-1 truncate text-sm md:block", isDark ? "text-slate-400" : "text-slate-600")}>
                     {dayNote || "—"}
                   </div>
+                  {/* Mobile: only the note icon button has stopPropagation; tapping dash or empty space opens Edit */}
                   <div className="flex md:hidden">
                     {dayNote ? (
                       <button
@@ -616,10 +632,10 @@ export function ExpensesEntriesSection() {
                     )}
                   </div>
                 </div>
+                {/* Type column: no stopPropagation so row click opens Edit. Only the type tag button (mobile popover) stops propagation. */}
                 <div
                   data-expense-entry-types-popover
                   className="flex flex-wrap items-center justify-start gap-1 p-2.5 text-left"
-                  onClick={(e) => e.stopPropagation()}
                 >
                   {/* Mobile / narrow: abbreviated "type +N" with popover for all */}
                   <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1 md:hidden">
@@ -678,7 +694,12 @@ export function ExpensesEntriesSection() {
                 <div className={cn("truncate p-2.5 text-left font-medium whitespace-nowrap", DEFAULT_AMOUNT_COLOR)}>
                   {credit > 0 ? formatMoneyK(credit) : "—"}
                 </div>
-                <div data-expense-entry-action-menu className="relative flex items-center justify-start gap-1 p-2.5 text-left">
+                {/* Action column: stop propagation so only Edit/Delete (or 3-dots menu) act — no row edit (mobile + desktop) */}
+                <div
+                  data-expense-entry-action-menu
+                  className="relative flex items-center justify-start gap-1 p-2.5 text-left"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   {/* Mobile: 3 dots for Edit/Delete, Add icon for Add */}
                   <div className="sm:hidden">
                     {hasData ? (
@@ -906,6 +927,7 @@ export function ExpensesEntriesSection() {
           month={month}
           items={budgetItems.filter((b) => b.categoryId === viewBudgetCategoryId)}
           expenseByTypeId={expenseByTypeIdForModal}
+          expenseEntries={expenseEntriesForBudgetModal}
         />
       )}
     </motion.div>

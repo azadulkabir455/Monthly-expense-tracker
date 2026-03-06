@@ -43,7 +43,7 @@ export function DashboardWishlistSection() {
       </SectionHeader>
       {loading ? (
         <ul className="space-y-2">
-          {[1, 2, 3].map((i) => (
+          {Array.from({ length: Math.max(topWishes.length, 2) }, (_, i) => (
             <li
               key={i}
               className={cn(

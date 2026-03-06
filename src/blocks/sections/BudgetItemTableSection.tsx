@@ -103,7 +103,7 @@ export function BudgetItemTableSection({
               </tr>
             </thead>
             <tbody>
-              {[1, 2, 3, 4].map((i) => (
+              {Array.from({ length: Math.max(items.length, 2) }, (_, i) => (
                 <tr key={i} className={cn("border-b", isDark ? "border-white/5" : "border-slate-50")}>
                   <td className="px-4 py-3"><Skeleton className="h-4 w-28" /></td>
                   <td className="px-4 py-3 text-right"><Skeleton className="h-4 w-16 ml-auto" /></td>

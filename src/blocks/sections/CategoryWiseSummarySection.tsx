@@ -136,7 +136,7 @@ export function CategoryWiseSummarySection() {
 
       {loading ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {[1, 2, 3].map((i) => (
+          {Array.from({ length: Math.max(expenseCategories.length, 2) }, (_, i) => (
             <Skeleton key={i} className="h-64 rounded-xl sm:rounded-2xl" />
           ))}
         </div>
