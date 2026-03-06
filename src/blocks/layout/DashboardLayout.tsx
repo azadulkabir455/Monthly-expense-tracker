@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "@/lib/firebase/auth";
 import {
@@ -273,8 +272,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         )}
       >
         <div className="flex items-center min-w-0">
-          <span className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white lg:hidden">
-            <Image src="/favicon.png" alt="" width={32} height={32} className="object-contain" unoptimized />
+          <span className="relative flex h-9 shrink-0 items-center justify-center overflow-hidden lg:hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/maserhisab.png" alt="মাসের হিসাব" className="h-9 w-auto object-contain" />
           </span>
           <span className="relative hidden h-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white lg:flex">
             {/* eslint-disable-next-line @next/next/no-img-element */}

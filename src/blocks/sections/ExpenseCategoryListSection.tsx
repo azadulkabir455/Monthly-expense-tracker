@@ -69,7 +69,7 @@ export function ExpenseCategoryListSection() {
   };
 
   return (
-    <SectionCard>
+    <SectionCard className={cn("relative overflow-visible", openActionId && "z-20")}>
       <SectionHeader>
         <div>
           <SectionTitle>Category List</SectionTitle>
@@ -123,7 +123,13 @@ export function ExpenseCategoryListSection() {
                 }}
                 aria-hidden
               />
-              <div data-expense-cat-action-menu className="relative flex shrink-0 items-center gap-1">
+              <div
+                data-expense-cat-action-menu
+                className={cn(
+                  "relative flex shrink-0 items-center gap-1",
+                  openActionId === cat.id && "z-10"
+                )}
+              >
                 {/* Mobile: 3 dots dropdown */}
                 <div className="sm:hidden">
                   <button
