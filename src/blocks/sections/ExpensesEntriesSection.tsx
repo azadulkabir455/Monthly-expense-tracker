@@ -19,6 +19,7 @@ import { useThemeContext } from "@/context/ThemeContext";
 import { useClientDate } from "@/hooks/useClientDate";
 import { useStartYear } from "@/hooks/useStartYear";
 import { GRADIENT_PRESETS } from "@/types/expenseCategory";
+import type { BudgetItem } from "@/types/budget";
 import { Skeleton } from "@/blocks/elements/Skeleton";
 import { toast } from "sonner";
 import { Pencil, Plus, Trash2, MoreVertical, FolderOpen, FileSpreadsheet, FileText } from "lucide-react";
@@ -231,6 +232,29 @@ export function ExpensesEntriesSection() {
         (e.amount !== 0 || !!e.expenseTypeId)
     );
   }, [viewBudgetCategoryId, expenseTypes, allItemsForMonth]);
+
+  /** Modal items: one row per expense type in this category (so "other" etc. show even without a budget entry) */
+  const budgetModalItems = useMemo(() => {
+    if (!viewBudgetCategoryId) return [];
+    const categoryTypes = expenseTypes.filter((t) => t.categoryId === viewBudgetCategoryId);
+    const budgetByType = new Map<string, BudgetItem>();
+    for (const b of budgetItems.filter((b) => b.categoryId === viewBudgetCategoryId)) {
+      if (b.expenseTypeId) budgetByType.set(b.expenseTypeId, b);
+    }
+    return categoryTypes.map((t) => {
+      const existing = budgetByType.get(t.id);
+      if (existing) return existing;
+      return {
+        id: `type-${t.id}`,
+        name: t.name,
+        amount: 0,
+        year,
+        month,
+        categoryId: viewBudgetCategoryId,
+        expenseTypeId: t.id,
+      } as BudgetItem;
+    });
+  }, [viewBudgetCategoryId, expenseTypes, budgetItems, year, month]);
 
   const tableRows = useMemo(() => {
     const daysInMonth = new Date(year, month, 0).getDate();
@@ -925,7 +949,7 @@ export function ExpensesEntriesSection() {
           categoryName={expenseCategories.find((c) => c.id === viewBudgetCategoryId)?.name ?? ""}
           year={year}
           month={month}
-          items={budgetItems.filter((b) => b.categoryId === viewBudgetCategoryId)}
+          items={budgetModalItems}
           expenseByTypeId={expenseByTypeIdForModal}
           expenseEntries={expenseEntriesForBudgetModal}
         />
