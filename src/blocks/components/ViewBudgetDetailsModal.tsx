@@ -12,8 +12,10 @@ import { Button } from "@/blocks/elements/Button";
 import { formatMoneyK } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useLanguage } from "@/context/LanguageContext";
 import type { BudgetItem } from "@/types/budget";
-import { X } from "lucide-react";
+import { downloadBudgetDetailsPdf } from "@/lib/pdf/budgetPdf";
+import { X, FileDown } from "lucide-react";
 
 /** Minimal shape for expense entries passed to modal (date, amount, type, name) */
 export interface BudgetModalExpenseEntry {
@@ -52,6 +54,7 @@ export function ViewBudgetDetailsModal({
   expenseEntries = [],
 }: ViewBudgetDetailsModalProps) {
   const { theme } = useThemeContext();
+  const { t } = useLanguage();
   const isDark = theme === "dark";
   const monthLabel = MONTH_NAMES[month - 1] ?? "";
   /** When set, show a modal with date-wise table for this type */
@@ -110,11 +113,25 @@ export function ViewBudgetDetailsModal({
       >
         <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-0 shrink-0">
           <CardTitle id="view-budget-details-title" className="text-lg">
-            Budget details — {categoryName}
+            {t("budgetDetails_title", { categoryName })}
           </CardTitle>
-          <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close">
-            <X className="h-5 w-5" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                downloadBudgetDetailsPdf(categoryName, year, month, items, expenseByTypeId);
+              }}
+              aria-label={t("budgetDetails_downloadPdf")}
+              title={t("budgetDetails_downloadPdf")}
+            >
+              <FileDown className="h-5 w-5" />
+            </Button>
+            <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close">
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="flex-1 overflow-auto pt-0 space-y-2">
           <p className="text-sm text-muted-foreground">
@@ -140,7 +157,7 @@ export function ViewBudgetDetailsModal({
                       isDark ? "bg-violet-950" : "bg-slate-100"
                     )}
                   >
-                    Name
+                    {t("budgetDetails_name")}
                   </th>
                   <th
                     className={cn(
@@ -148,7 +165,7 @@ export function ViewBudgetDetailsModal({
                       isDark ? "bg-violet-950" : "bg-slate-100"
                     )}
                   >
-                    Budget (৳)
+                    {t("budgetDetails_budgetTk")}
                   </th>
                   <th
                     className={cn(
@@ -156,7 +173,7 @@ export function ViewBudgetDetailsModal({
                       isDark ? "bg-violet-950" : "bg-slate-100"
                     )}
                   >
-                    Cost (৳)
+                    {t("budgetDetails_costTk")}
                   </th>
                   <th
                     className={cn(
@@ -164,7 +181,7 @@ export function ViewBudgetDetailsModal({
                       isDark ? "bg-violet-950" : "bg-slate-100"
                     )}
                   >
-                    Due (৳)
+                    {t("budgetDetails_dueTk")}
                   </th>
                 </tr>
               </thead>
@@ -230,7 +247,7 @@ export function ViewBudgetDetailsModal({
                         isDark ? "border-white/10 bg-white/5" : "border-slate-200 bg-slate-50/80"
                       )}
                     >
-                      <td className="px-4 py-3 text-foreground">Total</td>
+                      <td className="px-4 py-3 text-foreground">{t("budgetDetails_total")}</td>
                       <td className="px-4 py-3 text-right text-violet-600 dark:text-violet-400">
                         {formatMoneyK(totalBudget)}
                       </td>
@@ -332,7 +349,7 @@ export function ViewBudgetDetailsModal({
                             isDark ? "border-white/10 bg-white/5 text-foreground" : "border-[#ddd] bg-slate-100/80 text-foreground"
                           )}
                         >
-                          <span>Total</span>
+                          <span>{t("budgetDetails_total")}</span>
                           <span className="whitespace-nowrap">{formatMoneyK(total)}</span>
                         </div>
                       </div>

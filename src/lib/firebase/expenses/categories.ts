@@ -28,6 +28,7 @@ function toCategory(id: string, data: DocumentData): ExpenseCategory {
     name: (data.name as string) ?? "",
     icon: (data.icon as string) ?? "home",
     gradientPreset: (data.gradientPreset as GradientPresetId) ?? "violet",
+    yearlyCategoryId: data.yearlyCategoryId != null && data.yearlyCategoryId !== "" ? (data.yearlyCategoryId as string) : undefined,
   };
 }
 
@@ -54,30 +55,33 @@ export function subscribeExpenseCategories(
 
 export async function addExpenseCategory(
   uid: string,
-  data: { name: string; icon: string; gradientPreset: string }
+  data: { name: string; icon: string; gradientPreset: string; yearlyCategoryId?: string | null }
 ): Promise<ExpenseCategory> {
   const ref = await addDoc(col(uid), {
     name: data.name.trim(),
     icon: data.icon ?? "home",
     gradientPreset: data.gradientPreset ?? "violet",
+    yearlyCategoryId: data.yearlyCategoryId ?? null,
   });
   return {
     id: ref.id,
     name: data.name.trim(),
     icon: data.icon ?? "home",
     gradientPreset: (data.gradientPreset as GradientPresetId) ?? "violet",
+    yearlyCategoryId: data.yearlyCategoryId ?? undefined,
   };
 }
 
 export async function updateExpenseCategory(
   uid: string,
   id: string,
-  data: { name: string; icon: string; gradientPreset: string }
+  data: { name: string; icon: string; gradientPreset: string; yearlyCategoryId?: string | null }
 ): Promise<void> {
   await updateDoc(docRef(uid, id), {
     name: data.name.trim(),
     icon: data.icon ?? "home",
     gradientPreset: data.gradientPreset ?? "violet",
+    yearlyCategoryId: data.yearlyCategoryId ?? null,
   });
 }
 

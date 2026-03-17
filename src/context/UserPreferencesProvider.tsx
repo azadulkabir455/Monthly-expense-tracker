@@ -16,6 +16,7 @@ import {
   type ColorThemeId,
 } from "@/context/ColorThemeContext";
 import { AppLoader } from "@/components/AppLoader";
+import { LanguageProvider } from "@/context/LanguageContext";
 
 const STORAGE_THEME = "app_theme";
 const STORAGE_COLOR = "app_colorTheme";
@@ -128,24 +129,14 @@ export function UserPreferencesProvider({ children }: { children: React.ReactNod
     }
   }, [userId]);
 
-  if (!mounted) {
-    return (
-      <ThemeContext.Provider value={{ theme, setTheme, mounted: false }}>
-        <ColorThemeContext.Provider
-          value={{ colorTheme, setColorTheme, mounted: false }}
-        >
-          <AppLoader />
-        </ColorThemeContext.Provider>
-      </ThemeContext.Provider>
-    );
-  }
-
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, mounted: true }}>
+    <ThemeContext.Provider value={{ theme, setTheme, mounted }}>
       <ColorThemeContext.Provider
-        value={{ colorTheme, setColorTheme, mounted: true }}
+        value={{ colorTheme, setColorTheme, mounted }}
       >
-        {children}
+        <LanguageProvider>
+          {mounted ? children : <AppLoader />}
+        </LanguageProvider>
       </ColorThemeContext.Provider>
     </ThemeContext.Provider>
   );

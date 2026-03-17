@@ -14,6 +14,7 @@ import { Pencil, Trash2, MoreVertical } from "lucide-react";
 import { formatMoneyK } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { ConfirmModal } from "@/blocks/components/shared/ConfirmModal";
 import { EditBudgetItemModal } from "@/blocks/components/EditBudgetItemModal";
 import { Skeleton } from "@/blocks/elements/Skeleton";
@@ -43,6 +44,7 @@ export function BudgetItemTableSection({
 }: BudgetItemTableSectionProps) {
   const { theme } = useThemeContext();
   const isDark = theme === "dark";
+  const { t } = useLanguage();
   const [deleteTarget, setDeleteTarget] = useState<BudgetItem | null>(null);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null);
@@ -86,8 +88,8 @@ export function BudgetItemTableSection({
     <SectionCard>
       <SectionHeader>
         <div>
-          <SectionTitle>Budget List</SectionTitle>
-          <SectionSubtitle>Name and amount in table format.</SectionSubtitle>
+          <SectionTitle>{t("monthlyBudget_budgetListTitle")}</SectionTitle>
+          <SectionSubtitle>{t("monthlyBudget_budgetListSubtitle")}</SectionSubtitle>
         </div>
         {headerRight}
       </SectionHeader>

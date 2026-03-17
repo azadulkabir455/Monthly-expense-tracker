@@ -126,3 +126,34 @@ export function subscribeDebitForYear(
     unsubs.forEach((u) => u());
   };
 }
+
+/** Subscribe to full debit doc for all 12 months (per-category amounts per month). */
+export function subscribeDebitDocForYear(
+  uid: string,
+  year: number,
+  onData: (byMonth: Record<number, { amounts: Record<string, number>; legacyAmount?: number }>) => void,
+  onError?: (err: Error) => void
+): Unsubscribe {
+  const byMonth: Record<number, { amounts: Record<string, number>; legacyAmount?: number }> = {};
+  const unsubs: Unsubscribe[] = [];
+  const notify = () => onData({ ...byMonth });
+
+  for (let month = 1; month <= 12; month++) {
+    const unsub = onSnapshot(
+      docRef(uid, year, month),
+      (snap) => {
+        const raw = snap.data() as DebitData | undefined;
+        const legacyAmount = raw && typeof raw.amount === "number" && !raw.amounts ? raw.amount : undefined;
+        const amounts = raw?.amounts && typeof raw.amounts === "object" ? { ...raw.amounts } : {};
+        byMonth[month] = { amounts, legacyAmount };
+        notify();
+      },
+      (err) => onError?.(err)
+    );
+    unsubs.push(unsub);
+  }
+
+  return () => {
+    unsubs.forEach((u) => u());
+  };
+}

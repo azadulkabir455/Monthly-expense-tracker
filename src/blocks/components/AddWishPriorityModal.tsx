@@ -17,6 +17,7 @@ import { Label } from "@/blocks/elements/Label";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { getWishlistErrorMessage } from "@/lib/firebase/wishlist/errors";
 
 interface AddWishPriorityModalProps {
@@ -59,7 +60,7 @@ export function AddWishPriorityModal({ open, onClose, onAdd }: AddWishPriorityMo
     setSubmitting(true);
     try {
       await onAdd(name.trim(), order);
-      toast.success("Priority type added.");
+      toast.success(t("wishlist_priorityAdded"));
       onClose();
     } catch (err) {
       toast.error(getWishlistErrorMessage(err, "add", "priority"));
@@ -96,17 +97,17 @@ export function AddWishPriorityModal({ open, onClose, onAdd }: AddWishPriorityMo
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="priority-name">Priority Name</Label>
+              <Label htmlFor="priority-name">{t("wishlist_priorityName")}</Label>
               <Input
                 id="priority-name"
-                placeholder="e.g. High, Medium, Urgent"
+                placeholder={t("wishlist_priorityPlaceholder")}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="priority-order">Order (1 = highest)</Label>
+              <Label htmlFor="priority-order">{t("wishlist_priorityOrder")}</Label>
               <Input
                 id="priority-order"
                 type="number"
@@ -119,10 +120,10 @@ export function AddWishPriorityModal({ open, onClose, onAdd }: AddWishPriorityMo
           </CardContent>
           <CardFooter className="flex flex-col gap-2 sm:flex-row">
             <Button type="submit" className="w-full sm:w-auto" disabled={submitting}>
-              {submitting ? "Adding…" : "Add Priority"}
+              {submitting ? t("wishlist_adding") : t("wishlist_addPriority")}
             </Button>
-            <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={onClose}>
-              Cancel
+<Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={onClose}>
+            {t("common_cancel")}
             </Button>
           </CardFooter>
         </form>

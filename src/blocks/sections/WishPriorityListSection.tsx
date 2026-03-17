@@ -14,12 +14,14 @@ import {
 import { Flag, Pencil, Trash2, MoreVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { EditWishPriorityModal } from "@/blocks/components/EditWishPriorityModal";
 import { ConfirmModal } from "@/blocks/components/shared/ConfirmModal";
 import { Skeleton } from "@/blocks/elements/Skeleton";
 
 export function WishPriorityListSection() {
   const { theme } = useThemeContext();
+  const { t } = useLanguage();
   const isDark = theme === "dark";
   const { types: priorities, loading, updateType, deleteType } = useWishlistTypes();
   const [editingPriority, setEditingPriority] = useState<WishPriorityType | null>(null);
@@ -60,7 +62,7 @@ export function WishPriorityListSection() {
     }
     try {
       await deleteType(deleteTarget.id);
-      toast.success("Priority type deleted.");
+      toast.success(t("wishlist_priorityDeleted"));
       setDeleteTarget(null);
     } catch (err) {
       toast.error(getWishlistErrorMessage(err, "delete", "priority"));
@@ -75,9 +77,9 @@ export function WishPriorityListSection() {
     <SectionCard>
       <SectionHeader>
         <div>
-          <SectionTitle>Priority List</SectionTitle>
+          <SectionTitle>{t("wishlist_priorityList")}</SectionTitle>
           <SectionSubtitle>
-            All priority types. Lower order = higher priority (shown first).
+            {t("wishlist_priorityListSubtitle")}
           </SectionSubtitle>
         </div>
       </SectionHeader>

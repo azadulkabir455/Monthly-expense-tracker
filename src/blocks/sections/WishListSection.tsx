@@ -19,7 +19,7 @@ import {
   ListChecks,
   CircleDot,
 } from "lucide-react";
-import { DynamicIcon } from "lucide-react/dynamic";
+import { DynamicIcon, type IconName } from "lucide-react/dynamic";
 import {
   SectionCard,
   SectionHeader,
@@ -36,16 +36,15 @@ import { SelectDropdown, type SelectOption } from "@/blocks/components/shared/Se
 import { formatMoneyK } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { Skeleton } from "@/blocks/elements/Skeleton";
 
 const PAGE_SIZE = 10;
 const DESKTOP_MAX_WISHES = 5;
 
-const CATEGORY_ALL: SelectOption = { value: "", label: "All Categories" };
-const PRIORITY_ALL: SelectOption = { value: "", label: "All Priorities" };
-
 export function WishListSection() {
   const { theme } = useThemeContext();
+  const { t } = useLanguage();
   const isDark = theme === "dark";
   const { categories, loading: categoriesLoading } = useWishlistCategories();
   const { types: priorities, loading: prioritiesLoading } = useWishlistTypes();
@@ -59,6 +58,15 @@ export function WishListSection() {
     deleteItems,
   } = useWishlistItems(priorityOrder);
   const loading = categoriesLoading || prioritiesLoading || itemsLoading;
+
+  const categoryOptions: SelectOption[] = [
+    { value: "", label: t("common_allCategories") },
+    ...categories.map((c) => ({ value: c.id, label: c.name })),
+  ];
+  const priorityOptions: SelectOption[] = [
+    { value: "", label: t("common_allPriorities") },
+    ...priorities.map((p) => ({ value: p.id, label: p.name })),
+  ];
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCategoryId, setFilterCategoryId] = useState("");
   const [filterPriorityId, setFilterPriorityId] = useState<string>("");
@@ -99,15 +107,6 @@ export function WishListSection() {
     if (openActionId) document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [openActionId]);
-
-  const categoryOptions: SelectOption[] = [
-    CATEGORY_ALL,
-    ...categories.map((c) => ({ value: c.id, label: c.name })),
-  ];
-  const priorityOptions: SelectOption[] = [
-    PRIORITY_ALL,
-    ...priorities.map((p) => ({ value: p.id, label: p.name })),
-  ];
 
   const filteredWishes = allWishes.filter((w) => {
     if (w.done) return false;
@@ -174,7 +173,7 @@ export function WishListSection() {
   const handleMarkDone = async (item: WishItem) => {
     try {
       await updateItem(item.id, { done: true });
-      toast.success(`"${item.name}" moved to Done Wishlist.`);
+      toast.success(t("wishlist_movedToDone", { name: item.name }));
       setOpenActionId(null);
     } catch (err) {
       toast.error(getWishlistErrorMessage(err, "update", "wish"));
@@ -232,7 +231,7 @@ export function WishListSection() {
           )}
         />
         <Input
-          placeholder="Search by name..."
+          placeholder={t("wishlist_searchPlaceholder")}
           value={searchQuery}
           onChange={(e) => {
             setSearchQuery(e.target.value);
@@ -290,7 +289,7 @@ export function WishListSection() {
           )}
         >
           <div className="flex items-center justify-between px-4 py-3 border-b border-[#ddd] dark:border-white/10">
-            <span id="wishlist-filter-modal-title" className={cn("font-semibold", isDark ? "text-white" : "text-slate-800")}>Filters</span>
+            <span id="wishlist-filter-modal-title" className={cn("font-semibold", isDark ? "text-white" : "text-slate-800")}>{t("common_filters")}</span>
             <button
               type="button"
               onClick={() => setFilterModalOpen(false)}
@@ -317,7 +316,7 @@ export function WishListSection() {
                   : "bg-violet-600 text-white hover:bg-violet-700"
               )}
             >
-              OK
+              {t("common_ok")}
             </button>
           </div>
         </div>
@@ -344,7 +343,7 @@ export function WishListSection() {
         >
           <div className="flex items-center justify-between px-4 py-3 border-b shrink-0 dark:border-white/10 border-[#ddd]">
             <h2 id="done-wishlist-title" className={cn("text-lg font-semibold", isDark ? "text-white" : "text-slate-800")}>
-              Done Wishlist
+              {t("wishlist_doneWishlist")}
             </h2>
             <button
               type="button"
@@ -361,7 +360,7 @@ export function WishListSection() {
           <div className="flex-1 min-h-0 overflow-auto p-4 space-y-2 min-h-[120px]">
             {doneWishes.length === 0 ? (
               <p className={cn("py-6 text-center text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
-                No done items yet. Mark wishes as done from the list.
+                {t("wishlist_noDoneItems")}
               </p>
             ) : (
               <ul className="space-y-2">
@@ -379,7 +378,12 @@ export function WishListSection() {
                         isDark ? "bg-white/10 text-violet-300" : "bg-violet-100 text-violet-600"
                       )}
                     >
-                      <DynamicIcon name={item.iconType} fallback={Gift} className="h-4 w-4" strokeWidth={2} />
+                      <DynamicIcon
+                        name={(item.iconType as IconName) || "gift"}
+                        fallback={() => <Gift className="h-4 w-4" strokeWidth={2} />}
+                        className="h-4 w-4"
+                        strokeWidth={2}
+                      />
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className={cn("truncate font-medium", isDark ? "text-white" : "text-slate-800")}>{item.name}</p>
@@ -450,9 +454,13 @@ export function WishListSection() {
         {/* Row 1: desktop - flex space-between: title left, filters+Add right */}
         <div className="flex w-full flex-row flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 shrink-0">
-            <SectionTitle>Wish List</SectionTitle>
+            <SectionTitle>{t("wishlist_title")}</SectionTitle>
             <SectionSubtitle>
-              {loading ? "…" : `${allWishes.filter((w) => !w.done).length} item${allWishes.filter((w) => !w.done).length !== 1 ? "s" : ""} — search, bulk delete, edit`}
+              {loading ? "…" : (() => {
+                const count = allWishes.filter((w) => !w.done).length;
+                const itemWord = count === 1 ? t("wishlist_items") : t("wishlist_items_plural");
+                return `${count} ${itemWord} — ${t("wishlist_subtitle")}`;
+              })()}
             </SectionSubtitle>
           </div>
           <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-3">
@@ -478,7 +486,7 @@ export function WishListSection() {
                   )}
                 />
                 <Input
-                  placeholder="Search by name..."
+                  placeholder={t("wishlist_searchPlaceholder")}
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
@@ -517,7 +525,7 @@ export function WishListSection() {
                 onClick={() => setAddModalOpen(true)}
               >
                 <PlusCircle className="mr-1.5 h-4 w-4" />
-                Add Wish
+                {t("wishlist_addWish")}
               </Button>
               <Button
                 type="button"
@@ -527,7 +535,7 @@ export function WishListSection() {
                 onClick={() => setDoneWishlistModalOpen(true)}
               >
                 <ListChecks className="mr-1.5 h-4 w-4" />
-                Done Wishlist{doneWishes.length > 0 ? ` (${doneWishes.length})` : ""}
+                {t("wishlist_doneWishlist")}{doneWishes.length > 0 ? ` (${doneWishes.length})` : ""}
               </Button>
             </div>
           </div>
@@ -541,7 +549,7 @@ export function WishListSection() {
             onClick={() => setAddModalOpen(true)}
           >
             <PlusCircle className="mr-1.5 h-4 w-4" />
-            Add Wish
+            {t("wishlist_addWish")}
           </Button>
           <Button
             type="button"
@@ -551,7 +559,7 @@ export function WishListSection() {
             onClick={() => setDoneWishlistModalOpen(true)}
           >
             <ListChecks className="mr-1.5 h-4 w-4" />
-            Done{doneWishes.length > 0 ? ` (${doneWishes.length})` : ""}
+            {t("wishlist_doneWishlist")}{doneWishes.length > 0 ? ` (${doneWishes.length})` : ""}
           </Button>
         </div>
       </SectionHeader>

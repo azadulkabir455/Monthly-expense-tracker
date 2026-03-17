@@ -30,12 +30,28 @@ service cloud.firestore {
     match /users/{userId}/budgetItems/{docId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+    // Yearly budget debit (one doc per year: amounts by yearly category)
+    match /users/{userId}/yearlyBudgetDebit/{docId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    // Yearly budget items (per year, no month)
+    match /users/{userId}/yearlyBudgetItems/{docId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
     // Expense categories (user-wise): name, icon, color
     match /users/{userId}/expenseCategories/{docId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     // Expense types (user-wise): name, categoryId, mainCategoryId, group
     match /users/{userId}/expenseTypes/{docId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    // Yearly expense categories (user-wise, separate from monthly)
+    match /users/{userId}/yearlyCategories/{docId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    // Yearly expense types (user-wise, separate from monthly)
+    match /users/{userId}/yearlyTypes/{docId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     // Expense entries (user-wise): add/edit/delete category-wise

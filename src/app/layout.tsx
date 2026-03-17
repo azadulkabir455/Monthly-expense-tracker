@@ -14,8 +14,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "মাসের হিসাব | Maser Hisab",
-  description: "Track your monthly expenses — মাসের হিসাব",
+  title: {
+    default: "মাসের হিসাব | Monthly Expense Tracker",
+    template: "%s | মাসের হিসাব",
+  },
+  description:
+    "Track daily expenses, monthly and yearly budgets, and wishlist in one place. মাসের হিসাব helps you see where your money goes and plan spending.",
   icons: {
     icon: "/favicon.png",
     apple: "/favicon.png",

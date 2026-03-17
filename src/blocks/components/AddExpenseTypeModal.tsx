@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { useExpenseCategories, useExpenseTypes } from "@/lib/firebase/expenses";
 import { getWishlistErrorMessage } from "@/lib/firebase/wishlist/errors";
+import type { ExpenseCategory, ExpenseType } from "@/types/expenseCategory";
 import {
   Card,
   CardContent,
@@ -20,17 +21,34 @@ import { SelectDropdown, type SelectOption } from "@/blocks/components/shared/Se
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface AddExpenseTypeModalProps {
   open: boolean;
   onClose: () => void;
+  /** When provided, use these instead of monthly expense data (for yearly category page). */
+  scope?: "monthly" | "yearly";
+  scopeCategories?: ExpenseCategory[];
+  scopeTypes?: ExpenseType[];
+  scopeAddType?: (data: Omit<ExpenseType, "id">) => Promise<ExpenseType>;
 }
 
-export function AddExpenseTypeModal({ open, onClose }: AddExpenseTypeModalProps) {
-  const { categories } = useExpenseCategories();
-  const { types, addType } = useExpenseTypes();
+export function AddExpenseTypeModal({
+  open,
+  onClose,
+  scope = "monthly",
+  scopeCategories,
+  scopeTypes,
+  scopeAddType,
+}: AddExpenseTypeModalProps) {
+  const monthlyCategories = useExpenseCategories();
+  const monthlyTypes = useExpenseTypes();
+  const categories = scope === "yearly" && scopeCategories ? scopeCategories : monthlyCategories.categories;
+  const types = scope === "yearly" && scopeTypes ? scopeTypes : monthlyTypes.types;
+  const addTypeFn = scope === "yearly" && scopeAddType ? scopeAddType : monthlyTypes.addType;
   const { theme } = useThemeContext();
   const isDark = theme === "dark";
+  const { t } = useLanguage();
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
 
@@ -70,12 +88,22 @@ export function AddExpenseTypeModal({ open, onClose }: AddExpenseTypeModalProps)
         t.name.trim().toLowerCase() === trimmedName.toLowerCase()
     );
     if (alreadyExistsInCategory) {
-      toast.warning(`"${trimmedName}" already exists in this category.`);
+      toast.warning(
+        t("expenseType_alreadyExists", { name: trimmedName })
+      );
       return;
     }
     try {
-      await addType({ name: trimmedName, categoryId });
-      toast.success("Expense type added.");
+      if (scope === "yearly" && scopeAddType) {
+        await scopeAddType({ name: trimmedName, categoryId });
+      } else {
+        const selectedCat = monthlyCategories.categories.find((c) => c.id === categoryId);
+        await monthlyTypes.addType(
+          { name: trimmedName, categoryId },
+          selectedCat?.yearlyCategoryId
+        );
+      }
+      toast.success(t("expenseType_added"));
       onClose();
     } catch (err) {
       toast.error(getWishlistErrorMessage(err, "add", "expenseType"));
@@ -95,8 +123,12 @@ export function AddExpenseTypeModal({ open, onClose }: AddExpenseTypeModalProps)
       <Card className={cn("relative z-10 w-full max-w-md", isDark && "border-white/10")}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <div>
-            <CardTitle id="add-expense-type-title">Add Expense Type</CardTitle>
-            <CardDescription>Link type to a main category — e.g. Bazar, House Rent.</CardDescription>
+            <CardTitle id="add-expense-type-title">
+              {t("expenseType_addTitle")}
+            </CardTitle>
+            <CardDescription>
+              {t("expenseType_addDescription")}
+            </CardDescription>
           </div>
           <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close">
             <X className="h-5 w-5" />
@@ -105,17 +137,19 @@ export function AddExpenseTypeModal({ open, onClose }: AddExpenseTypeModalProps)
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="exp-type-name">Type Name</Label>
+              <Label htmlFor="exp-type-name">
+                {t("expenseType_typeNameLabel")}
+              </Label>
               <Input
                 id="exp-type-name"
-                placeholder="e.g. Bazar, House Rent, Utilities"
+                placeholder={t("expenseType_typeNamePlaceholder")}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label>Category</Label>
+              <Label>{t("expenseType_categoryLabel")}</Label>
               <SelectDropdown
                 options={categoryOptions}
                 value={categoryId}
@@ -127,10 +161,10 @@ export function AddExpenseTypeModal({ open, onClose }: AddExpenseTypeModalProps)
           </CardContent>
           <CardFooter className="flex flex-col gap-2 sm:flex-row">
             <Button type="submit" className="w-full sm:w-auto">
-              Add Type
+              {t("expenseType_addButton")}
             </Button>
             <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={onClose}>
-              Cancel
+              {t("common_cancel")}
             </Button>
           </CardFooter>
         </form>

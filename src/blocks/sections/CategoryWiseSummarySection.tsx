@@ -7,7 +7,7 @@ import { useExpenseCategories, useExpenseTypes, useExpenseEntries } from "@/lib/
 import { useBudgetItems } from "@/lib/firebase/budget";
 import { useThemeContext } from "@/context/ThemeContext";
 import { MonthYearDatePicker } from "@/blocks/components/MonthYearDatePicker";
-import { useStartYear } from "@/hooks/useStartYear";
+import { useCalendarYears } from "@/hooks/useCalendarYears";
 import { useClientDate } from "@/hooks/useClientDate";
 import {
   SectionCard,
@@ -15,10 +15,11 @@ import {
   SectionTitle,
   SectionSubtitle,
 } from "@/blocks/elements/SectionCard";
+import { useLanguage } from "@/context/LanguageContext";
 import { formatMoneyK } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { GRADIENT_PRESETS } from "@/types/expenseCategory";
-import { DynamicIcon } from "lucide-react/dynamic";
+import { DynamicIcon, type IconName } from "lucide-react/dynamic";
 import { FolderOpen } from "lucide-react";
 import type { ExpenseCategory } from "@/types/expenseCategory";
 import { Skeleton } from "@/blocks/elements/Skeleton";
@@ -51,15 +52,11 @@ interface CategoryCardData {
 
 export function CategoryWiseSummarySection() {
   const { theme } = useThemeContext();
+  const { t } = useLanguage();
   const isDark = theme === "dark";
-  const startYear = useStartYear();
   const { year: currentYear, month: currentMonth0, isClient } = useClientDate();
   const currentMonth = currentMonth0 + 1;
-  const years = useMemo(
-    () =>
-      Array.from({ length: currentYear - startYear + 1 }, (_, i) => currentYear - i),
-    [currentYear, startYear]
-  );
+  const years = useCalendarYears(currentYear);
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState<number>(currentMonth);
 
@@ -116,9 +113,9 @@ export function CategoryWiseSummarySection() {
     <SectionCard>
       <SectionHeader>
         <div className="min-w-0 flex-1">
-          <SectionTitle>Expense By Category</SectionTitle>
+          <SectionTitle>{t("categorySummary_title")}</SectionTitle>
           <SectionSubtitle className="hidden sm:block">
-            View Your Spending Breakdown By Grocery, Business, Study, Medicine & More
+            {t("categorySummary_subtitle")}
           </SectionSubtitle>
         </div>
         <div className="w-full sm:w-auto sm:min-w-[140px] sm:shrink-0">
@@ -180,8 +177,8 @@ export function CategoryWiseSummarySection() {
                   <div className="mb-2 flex items-center gap-2 sm:mb-3">
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/20 sm:h-9 sm:w-9">
                       <DynamicIcon
-                        name={(item.category.icon as string) || "folder"}
-                        fallback={FolderOpen}
+                        name={(item.category.icon as IconName) || ("folder" as IconName)}
+                        fallback={() => <FolderOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4" strokeWidth={2} />}
                         className="h-3.5 w-3.5 sm:h-4 sm:w-4"
                         strokeWidth={2}
                       />

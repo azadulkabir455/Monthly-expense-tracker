@@ -22,9 +22,11 @@ interface AddDebitAmountModalProps {
   open: boolean;
   onClose: () => void;
   year: number;
-  month: number;
+  month?: number;
   categoryId: string;
   categoryName: string;
+  /** "yearly" = yearly budget (no month); "monthly" = per month */
+  variant?: "monthly" | "yearly";
   /** Current debit amount (from Firestore) for this category — for edit mode */
   currentAmount?: number | null;
   /** Save to Firestore (user-wise). Called with amount in ৳. */
@@ -38,6 +40,7 @@ export function AddDebitAmountModal({
   month,
   categoryId,
   categoryName,
+  variant = "monthly",
   currentAmount,
   onSave,
 }: AddDebitAmountModalProps) {
@@ -78,10 +81,15 @@ export function AddDebitAmountModal({
       toast.success(isEdit ? "Debit updated." : "Debit added.");
       onClose();
     } catch (err) {
+      const code = err && typeof err === "object" && "code" in err ? (err as { code: string }).code : "";
       const msg =
         err instanceof Error && err.message === "NOT_AUTHENTICATED"
           ? "Please sign in first."
-          : "Could not save debit. Try again.";
+          : err instanceof Error && err.message === "Select a category first."
+            ? "Select a category first."
+            : code === "permission-denied"
+              ? "Permission denied. Deploy Firestore rules (e.g. firebase deploy --only firestore:rules)."
+              : "Could not save debit. Try again.";
       toast.error(msg);
     } finally {
       setSubmitting(false);
@@ -105,7 +113,10 @@ export function AddDebitAmountModal({
               {isEdit ? "Edit Debit Amount" : "Add Debit Amount"}
             </CardTitle>
             <CardDescription>
-              Monthly debit (budget) for <strong>{categoryName || "this category"}</strong> in ৳.
+              {variant === "yearly"
+                ? "Yearly debit (budget) for"
+                : "Monthly debit (budget) for"}{" "}
+              <strong>{categoryName || "this category"}</strong> in ৳.
             </CardDescription>
           </div>
           <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close">

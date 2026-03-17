@@ -21,6 +21,7 @@ import { IconSearchInput } from "@/blocks/components/shared/IconSearchInput";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface AddWishModalProps {
   open: boolean;
@@ -32,6 +33,7 @@ interface AddWishModalProps {
 
 export function AddWishModal({ open, onClose, categories, priorities, onAdd }: AddWishModalProps) {
   const { theme } = useThemeContext();
+  const { t } = useLanguage();
   const isDark = theme === "dark";
 
   const [name, setName] = useState("");
@@ -42,7 +44,7 @@ export function AddWishModal({ open, onClose, categories, priorities, onAdd }: A
   const [submitting, setSubmitting] = useState(false);
 
   const categoryOptions: SelectOption[] = [
-    { value: "", label: "Select category" },
+    { value: "", label: t("wishlist_selectCategory") },
     ...categories.map((c) => ({ value: c.id, label: c.name })),
   ];
   const priorityOptions: SelectOption[] = priorities.map((p) => ({ value: p.id, label: p.name }));
@@ -112,8 +114,8 @@ export function AddWishModal({ open, onClose, categories, priorities, onAdd }: A
       )}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <div>
-            <CardTitle id="add-wish-title">Add Wish</CardTitle>
-            <CardDescription>Add a new item to your wish list.</CardDescription>
+            <CardTitle id="add-wish-title">{t("wishlist_addWish")}</CardTitle>
+            <CardDescription>{t("wishlist_addWishDescription")}</CardDescription>
           </div>
           <Button
             type="button"
@@ -177,10 +179,10 @@ export function AddWishModal({ open, onClose, categories, priorities, onAdd }: A
           </CardContent>
           <CardFooter className="flex flex-col gap-2 sm:flex-row">
             <Button type="submit" className="w-full sm:w-auto" disabled={submitting}>
-              {submitting ? "Adding…" : "Add Wish"}
+              {submitting ? t("wishlist_adding") : t("wishlist_addWish")}
             </Button>
             <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={onClose}>
-              Cancel
+              {t("common_cancel")}
             </Button>
           </CardFooter>
         </form>

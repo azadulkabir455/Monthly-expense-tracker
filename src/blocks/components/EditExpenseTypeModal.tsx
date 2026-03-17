@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { useExpenseCategories, useExpenseTypes } from "@/lib/firebase/expenses";
 import { getWishlistErrorMessage } from "@/lib/firebase/wishlist/errors";
-import type { ExpenseType } from "@/types/expenseCategory";
+import type { ExpenseCategory, ExpenseType } from "@/types/expenseCategory";
 import { SelectDropdown, type SelectOption } from "@/blocks/components/shared/SelectDropdown";
 import {
   Card,
@@ -21,18 +21,33 @@ import { Label } from "@/blocks/elements/Label";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface EditExpenseTypeModalProps {
   expenseType: ExpenseType | null;
   open: boolean;
   onClose: () => void;
+  /** When provided, use these for yearly category page. */
+  scope?: "monthly" | "yearly";
+  scopeCategories?: ExpenseCategory[];
+  scopeUpdateType?: (id: string, data: Partial<Omit<ExpenseType, "id">>) => Promise<void>;
 }
 
-export function EditExpenseTypeModal({ expenseType, open, onClose }: EditExpenseTypeModalProps) {
-  const { categories } = useExpenseCategories();
-  const { updateType } = useExpenseTypes();
+export function EditExpenseTypeModal({
+  expenseType,
+  open,
+  onClose,
+  scope = "monthly",
+  scopeCategories,
+  scopeUpdateType,
+}: EditExpenseTypeModalProps) {
+  const monthlyCategories = useExpenseCategories();
+  const monthlyTypes = useExpenseTypes();
+  const categories = scope === "yearly" && scopeCategories ? scopeCategories : monthlyCategories.categories;
+  const updateTypeFn = scope === "yearly" && scopeUpdateType ? scopeUpdateType : monthlyTypes.updateType;
   const { theme } = useThemeContext();
   const isDark = theme === "dark";
+  const { t } = useLanguage();
   const [name, setName] = useState("");
   const [categoryId, setCategoryId] = useState("");
 
@@ -66,11 +81,11 @@ export function EditExpenseTypeModal({ expenseType, open, onClose }: EditExpense
     e.preventDefault();
     if (!expenseType || !name.trim() || !categoryId) return;
     try {
-      await updateType(expenseType.id, {
+      await updateTypeFn(expenseType.id, {
         name: name.trim(),
         categoryId,
       });
-      toast.success("Expense type updated.");
+      toast.success(t("expenseType_updated"));
       onClose();
     } catch (err) {
       toast.error(getWishlistErrorMessage(err, "update", "expenseType"));
@@ -90,8 +105,12 @@ export function EditExpenseTypeModal({ expenseType, open, onClose }: EditExpense
       <Card className={cn("relative z-10 w-full max-w-md", isDark && "border-white/10")}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <div>
-            <CardTitle id="edit-expense-type-title">Edit Expense Type</CardTitle>
-            <CardDescription>Update the type name and category.</CardDescription>
+            <CardTitle id="edit-expense-type-title">
+              {t("expenseType_editTitle")}
+            </CardTitle>
+            <CardDescription>
+              {t("expenseType_editDescription")}
+            </CardDescription>
           </div>
           <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close">
             <X className="h-5 w-5" />
@@ -100,17 +119,19 @@ export function EditExpenseTypeModal({ expenseType, open, onClose }: EditExpense
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-exp-type-name">Type Name</Label>
+              <Label htmlFor="edit-exp-type-name">
+                {t("expenseType_typeNameLabel")}
+              </Label>
               <Input
                 id="edit-exp-type-name"
-                placeholder="e.g. Bazar, House Rent"
+                placeholder={t("expenseType_typeNamePlaceholder")}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label>Category</Label>
+              <Label>{t("expenseType_categoryLabel")}</Label>
               <SelectDropdown
                 options={categoryOptions}
                 value={categoryId}
@@ -122,10 +143,10 @@ export function EditExpenseTypeModal({ expenseType, open, onClose }: EditExpense
           </CardContent>
           <CardFooter className="flex flex-col gap-2 sm:flex-row">
             <Button type="submit" className="w-full sm:w-auto">
-              Save Changes
+              {t("expenseType_saveChanges")}
             </Button>
             <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={onClose}>
-              Cancel
+              {t("common_cancel")}
             </Button>
           </CardFooter>
         </form>

@@ -42,6 +42,10 @@ interface EditDayExpensesModalProps {
   expensesForDay: Expense[];
   allExpensesForDay: Expense[];
   categoryTypes: { id: string; name: string; mainCategoryId?: string }[];
+  /** When true, show list only — no add/edit/delete (e.g. yearly view showing monthly-sourced entries) */
+  readOnly?: boolean;
+  /** Type ids for which entries are view-only (e.g. yearly types synced from monthly). Edit/delete/add hidden for these. */
+  readOnlyTypeIds?: string[] | Set<string>;
   /** When set, add/edit/delete use Firestore instead of Redux */
   firestoreApi?: {
     addEntry: (data: Omit<Expense, "id" | "createdAt">) => Promise<Expense | void>;
@@ -61,11 +65,23 @@ export function EditDayExpensesModal({
   expensesForDay,
   allExpensesForDay,
   categoryTypes,
+  readOnly = false,
+  readOnlyTypeIds: readOnlyTypeIdsProp,
   firestoreApi,
 }: EditDayExpensesModalProps) {
   const dispatch = useAppDispatch();
   const { theme } = useThemeContext();
   const isDark = theme === "dark";
+
+  const readOnlyTypeIds = useMemo(
+    () =>
+      readOnlyTypeIdsProp == null
+        ? null
+        : readOnlyTypeIdsProp instanceof Set
+          ? readOnlyTypeIdsProp
+          : new Set(readOnlyTypeIdsProp),
+    [readOnlyTypeIdsProp]
+  );
 
   const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
   const MONTH_NAMES = [
@@ -241,6 +257,7 @@ export function EditDayExpensesModal({
         let hadAdd = false;
         let hadUpdate = false;
         for (const [typeId, list] of itemsByType) {
+          if (readOnlyTypeIds?.has(typeId)) continue;
           for (const item of list) {
             if (!item.name.trim() && item.amount <= 0) continue;
             const typeMeta = categoryTypes.find((t) => t.id === typeId);
@@ -322,6 +339,7 @@ export function EditDayExpensesModal({
       }
     } else {
       for (const [typeId, list] of itemsByType) {
+        if (readOnlyTypeIds?.has(typeId)) continue;
         for (const item of list) {
           if (!item.name.trim() && item.amount <= 0) continue;
           if (item.id) {
@@ -403,10 +421,14 @@ export function EditDayExpensesModal({
         <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2 shrink-0">
           <div>
             <CardTitle id="edit-day-expenses-title">
-              Edit expenses — {day} {monthLabel} {year}
+              {readOnly ? "View expenses" : "Edit expenses"} — {day} {monthLabel} {year}
             </CardTitle>
             <CardDescription>
-              Select expense type, click Add items, then the section below appears to add or edit items.
+              {readOnly
+                ? "These entries are from monthly expenses. To edit, go to Monthly Expenses."
+                : readOnlyTypeIds?.size
+                  ? "Entries from monthly (synced) are view-only. Yearly-only types can be edited, deleted, or new items added."
+                  : "Select expense type, click Add items, then the section below appears to add or edit items."}
             </CardDescription>
           </div>
           <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close">
@@ -414,31 +436,33 @@ export function EditDayExpensesModal({
           </Button>
         </CardHeader>
         <CardContent className="flex-1 overflow-y-auto space-y-5 pb-4">
-          {/* 1. Type selector + Add button side by side (pasapasi) on mobile and desktop */}
-          <div className="flex flex-nowrap items-end gap-2 sm:gap-3">
-            <div className="min-w-0 flex-1 space-y-2">
-              <label className="text-sm font-medium text-foreground">Select expense type</label>
-              <SelectDropdown
-                options={typeOptions}
-                value={activeTypeId}
-                onChange={handleTypeSelect}
-                label=""
-                className="w-full"
-              />
+          {/* 1. Type selector + Add button — hidden when readOnly */}
+          {!readOnly && (
+            <div className="flex flex-nowrap items-end gap-2 sm:gap-3">
+              <div className="min-w-0 flex-1 space-y-2">
+                <label className="text-sm font-medium text-foreground">Select expense type</label>
+                <SelectDropdown
+                  options={typeOptions}
+                  value={activeTypeId}
+                  onChange={handleTypeSelect}
+                  label=""
+                  className="w-full"
+                />
+              </div>
+              {activeTypeId && !readOnlyTypeIds?.has(activeTypeId) && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="default"
+                  onClick={handleAddClick}
+                  className="shrink-0 gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add items
+                </Button>
+              )}
             </div>
-            {activeTypeId && (
-              <Button
-                type="button"
-                variant="outline"
-                size="default"
-                onClick={handleAddClick}
-                className="shrink-0 gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Add items
-              </Button>
-            )}
-          </div>
+          )}
 
           {/* 3. Item sections – each stays visible once added; type change doesn’t remove them */}
           {sectionExpandedTypeIds.map((typeId) => {
@@ -446,6 +470,7 @@ export function EditDayExpensesModal({
             const typeName = typeInfo?.name ?? typeId;
             const list = itemsByType.get(typeId) ?? [];
             const isActive = activeTypeId === typeId;
+            const isTypeReadOnly = readOnlyTypeIds?.has(typeId) ?? false;
 
             return (
               <div
@@ -457,7 +482,7 @@ export function EditDayExpensesModal({
               >
                 <h4 className="font-semibold text-foreground">{typeName}</h4>
 
-                {isActive && (
+                {!readOnly && !isTypeReadOnly && isActive && (
                   <div className="flex flex-wrap items-center gap-2">
                     <Input
                       ref={itemNameInputRef}
@@ -494,7 +519,7 @@ export function EditDayExpensesModal({
                     <>
                       <ol className="divide-y dark:divide-white/10 list-decimal list-outside pl-6 ml-1">
                         {list.map((item, idx) => {
-                        const isEditing = editingIdx?.typeId === typeId && editingIdx?.idx === idx;
+                        const isEditing = !readOnly && !isTypeReadOnly && editingIdx?.typeId === typeId && editingIdx?.idx === idx;
                         return (
                           <li
                             key={item.id ?? `new-${idx}`}
@@ -534,26 +559,30 @@ export function EditDayExpensesModal({
                                 <span className="font-medium text-violet-600 dark:text-violet-400">
                                   {item.amount} ৳
                                 </span>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => startEdit(typeId, idx)}
-                                  className="shrink-0 h-8 w-8"
-                                  aria-label="Edit"
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => removeItem(typeId, idx)}
-                                  className="shrink-0 h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                                  aria-label="Delete"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                {!readOnly && !isTypeReadOnly && (
+                                  <>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => startEdit(typeId, idx)}
+                                      className="shrink-0 h-8 w-8"
+                                      aria-label="Edit"
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => removeItem(typeId, idx)}
+                                      className="shrink-0 h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                                      aria-label="Delete"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                )}
                               </>
                             )}
                             </div>
@@ -574,23 +603,33 @@ export function EditDayExpensesModal({
             );
           })}
 
-          {/* Global note input at bottom */}
-          <div className="pt-4 pb-2 border-t border-[#ddd] dark:border-white/10">
-            <Input
-              placeholder="Note (optional)"
-              value={dayNote}
-              onChange={(e) => setDayNote(e.target.value)}
-              className="w-full"
-            />
-          </div>
+          {/* Global note input at bottom — hidden when readOnly */}
+          {!readOnly && (
+            <div className="pt-4 pb-2 border-t border-[#ddd] dark:border-white/10">
+              <Input
+                placeholder="Note (optional)"
+                value={dayNote}
+                onChange={(e) => setDayNote(e.target.value)}
+                className="w-full"
+              />
+            </div>
+          )}
         </CardContent>
-        <CardFooter className="grid grid-cols-2 gap-2 shrink-0 border-t border-[#ddd] pt-6 dark:border-white/10">
-          <Button type="button" onClick={handleSave} className="w-full" disabled={!!firestoreApi && isSaving}>
-            {firestoreApi && isSaving ? "Saving…" : "Save Changes"}
-          </Button>
-          <Button type="button" variant="secondary" onClick={onClose} className="w-full">
-            Cancel
-          </Button>
+        <CardFooter className={cn("grid shrink-0 border-t border-[#ddd] pt-6 dark:border-white/10", readOnly ? "grid-cols-1" : "grid-cols-2 gap-2")}>
+          {readOnly ? (
+            <Button type="button" onClick={onClose} className="w-full">
+              Close
+            </Button>
+          ) : (
+            <>
+              <Button type="button" onClick={handleSave} className="w-full" disabled={!!firestoreApi && isSaving}>
+                {firestoreApi && isSaving ? "Saving…" : "Save Changes"}
+              </Button>
+              <Button type="button" variant="secondary" onClick={onClose} className="w-full">
+                Cancel
+              </Button>
+            </>
+          )}
         </CardFooter>
       </Card>
     </div>,

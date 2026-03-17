@@ -8,6 +8,7 @@ import { selectExpensesFiltered, removeExpense } from "@/store/slices/expensesSl
 import { useExpenseCategories, useExpenseTypes, useExpenseEntries } from "@/lib/firebase/expenses";
 import { useBudgetDebitDoc, useBudgetItems } from "@/lib/firebase/budget";
 import { Button } from "@/blocks/elements/Button";
+import { SectionCard } from "@/blocks/elements/SectionCard";
 import { MonthYearDatePicker } from "@/blocks/components/MonthYearDatePicker";
 import { SelectDropdown, type SelectOption } from "@/blocks/components/shared/SelectDropdown";
 import { ConfirmModal } from "@/blocks/components/shared/ConfirmModal";
@@ -16,8 +17,9 @@ import { ViewBudgetDetailsModal } from "@/blocks/components/ViewBudgetDetailsMod
 import { formatMoneyK } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { useClientDate } from "@/hooks/useClientDate";
-import { useStartYear } from "@/hooks/useStartYear";
+import { useCalendarYears } from "@/hooks/useCalendarYears";
 import { GRADIENT_PRESETS } from "@/types/expenseCategory";
 import type { BudgetItem } from "@/types/budget";
 import { Skeleton } from "@/blocks/elements/Skeleton";
@@ -39,10 +41,10 @@ const DEFAULT_AMOUNT_COLOR = "text-violet-600 dark:text-violet-400";
 export function ExpensesEntriesSection() {
   const dispatch = useAppDispatch();
   const { theme } = useThemeContext();
+  const { t } = useLanguage();
   const isDark = theme === "dark";
   const { year: currentYear, month: currentMonth0, isClient } = useClientDate();
   const currentMonth = currentMonth0 + 1;
-  const startYear = useStartYear();
 
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date(STABLE_INITIAL_DATE.getTime()));
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
@@ -58,10 +60,7 @@ export function ExpensesEntriesSection() {
   const [notePopup, setNotePopup] = useState<{ day: number; note: string } | null>(null);
   const [viewBudgetCategoryId, setViewBudgetCategoryId] = useState<string | null>(null);
 
-  const years = useMemo(
-    () => Array.from({ length: currentYear - startYear + 1 }, (_, i) => currentYear - i),
-    [currentYear, startYear]
-  );
+  const years = useCalendarYears(currentYear);
 
   const { categories: expenseCategories, loading: categoriesLoading } = useExpenseCategories();
   const { types: expenseTypes, loading: typesLoading } = useExpenseTypes();
@@ -74,8 +73,8 @@ export function ExpensesEntriesSection() {
     [expenseTypes, selectedCategoryId]
   );
   const typeOptions: SelectOption[] = [
-    { value: "", label: "All Types" },
-    ...categoryTypes.map((t) => ({ value: t.id, label: t.name })),
+    { value: "", label: t("common_allTypes") },
+    ...categoryTypes.map((type) => ({ value: type.id, label: type.name })),
   ];
   const typeIdsForSelectedCategory = useMemo(
     () =>
@@ -406,38 +405,36 @@ export function ExpensesEntriesSection() {
       className="space-y-4 sm:space-y-5"
     >
       {/* Title area */}
-      <div
-        className={cn(
-          "flex flex-col gap-4 rounded-xl border border-[#ddd] bg-white px-4 py-4 shadow-card-lg dark:border-white/10 dark:bg-white/5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
-        )}
-      >
-        <div className="min-w-0 shrink-0">
-          <h1 className="text-xl font-bold text-foreground sm:text-2xl">
-            Expenses Entries
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            View and manage your expense transactions by date and category.
-          </p>
+      <SectionCard>
+        <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <div className="min-w-0 shrink-0">
+            <h1 className="text-xl font-bold text-foreground sm:text-2xl">
+              {t("monthlyEntries_title")}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t("monthlyEntries_subtitle")}
+            </p>
+          </div>
+          <div className="flex w-full min-w-0 flex-col gap-3 sm:ml-auto sm:w-auto sm:flex-row sm:flex-wrap sm:shrink-0 sm:items-center sm:justify-end">
+            <MonthYearDatePicker
+              years={years}
+              year={year}
+              month={month}
+              onYearChange={(y) => setSelectedDate(new Date(y, month - 1, 1))}
+              onMonthChange={(m) => setSelectedDate(new Date(year, m - 1, 1))}
+              label=""
+              className="w-full min-w-0 sm:w-auto sm:min-w-[140px]"
+            />
+            <SelectDropdown
+              options={typeOptions}
+              value={selectedTypeId}
+              onChange={(v) => setSelectedTypeId(String(v))}
+              label=""
+              className="min-w-[130px]"
+            />
+          </div>
         </div>
-        <div className="flex w-full min-w-0 flex-col gap-3 sm:ml-auto sm:w-auto sm:flex-row sm:flex-wrap sm:shrink-0 sm:items-center sm:justify-end">
-          <MonthYearDatePicker
-            years={years}
-            year={year}
-            month={month}
-            onYearChange={(y) => setSelectedDate(new Date(y, month - 1, 1))}
-            onMonthChange={(m) => setSelectedDate(new Date(year, m - 1, 1))}
-            label=""
-            className="w-full min-w-0 sm:w-auto sm:min-w-[140px]"
-          />
-          <SelectDropdown
-            options={typeOptions}
-            value={selectedTypeId}
-            onChange={(v) => setSelectedTypeId(String(v))}
-            label=""
-            className="min-w-[130px]"
-          />
-        </div>
-      </div>
+      </SectionCard>
 
       {/* Category cards: Firestore categories – name on top, debit/credit */}
       {entriesLoading ? (
@@ -545,7 +542,7 @@ export function ExpensesEntriesSection() {
                 }}
                 onClick={() => setViewBudgetCategoryId(selectedCategoryId)}
               >
-                View budget details
+                {t("entries_viewBudgetDetails")}
               </Button>
             </div>
           );
@@ -596,11 +593,11 @@ export function ExpensesEntriesSection() {
             isDark ? "border-white/10 bg-white/5" : "border-[#ddd] bg-slate-50"
           )}
         >
-          <div className={cn("p-2.5 text-left", isDark ? "text-slate-300" : "text-slate-700")}>Date</div>
-          <div className={cn("p-2.5 text-left", isDark ? "text-slate-300" : "text-slate-700")}>Note</div>
-          <div className={cn("p-2.5 text-left", isDark ? "text-slate-300" : "text-slate-700")}>Type</div>
-          <div className={cn("p-2.5 text-left", DEFAULT_AMOUNT_COLOR)}>Amount</div>
-          <div className={cn("p-2.5 text-left", isDark ? "text-slate-300" : "text-slate-700")}>Action</div>
+          <div className={cn("p-2.5 text-left", isDark ? "text-slate-300" : "text-slate-700")}>{t("entries_date")}</div>
+          <div className={cn("p-2.5 text-left", isDark ? "text-slate-300" : "text-slate-700")}>{t("entries_note")}</div>
+          <div className={cn("p-2.5 text-left", isDark ? "text-slate-300" : "text-slate-700")}>{t("entries_type")}</div>
+          <div className={cn("p-2.5 text-left", DEFAULT_AMOUNT_COLOR)}>{t("entries_amount")}</div>
+          <div className={cn("p-2.5 text-left", isDark ? "text-slate-300" : "text-slate-700")}>{t("entries_action")}</div>
         </div>
 
         <div className={cn("divide-y", isDark ? "divide-white/10" : "divide-[#ddd]")}>
@@ -647,7 +644,7 @@ export function ExpensesEntriesSection() {
                           "rounded-lg p-1.5 transition",
                           isDark ? "text-violet-400 hover:bg-white/10" : "text-violet-600 hover:bg-violet-100"
                         )}
-                        aria-label="View note"
+                        aria-label={t("entries_viewNote")}
                       >
                         <FileText className="h-4 w-4" />
                       </button>
@@ -762,7 +759,7 @@ export function ExpensesEntriesSection() {
                           )}
                         >
                           <Pencil className="h-4 w-4" />
-                          Edit
+                          {t("common_edit")}
                         </button>
                         {hasData && (
                           <button
@@ -778,7 +775,7 @@ export function ExpensesEntriesSection() {
                             )}
                           >
                             <Trash2 className="h-4 w-4" />
-                            Delete
+                            {t("common_delete")}
                           </button>
                         )}
                       </div>
@@ -811,7 +808,7 @@ export function ExpensesEntriesSection() {
                             ? "text-slate-400 hover:bg-white/10 hover:text-slate-200"
                             : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
                       )}
-                      aria-label={hasData ? "Edit" : "Add"}
+                      aria-label={hasData ? t("common_edit") : t("common_add")}
                     >
                       {hasData ? (
                         <Pencil className="h-4 w-4" />
@@ -832,7 +829,7 @@ export function ExpensesEntriesSection() {
                             ? "text-slate-400 hover:bg-red-500/20 hover:text-red-400"
                             : "text-slate-500 hover:bg-red-100 hover:text-red-600"
                         )}
-                        aria-label="Delete"
+                        aria-label={t("common_delete")}
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -852,9 +849,9 @@ export function ExpensesEntriesSection() {
         open={deleteConfirmDay != null}
         onClose={() => setDeleteConfirmDay(null)}
         onConfirm={handleConfirmDelete}
-        title="Delete Expenses"
-        message="Are you sure you want to delete these expenses?"
-        confirmLabel="Delete"
+        title={t("entries_deleteExpensesTitle")}
+        message={t("entries_deleteExpensesMessage")}
+        confirmLabel={t("common_delete")}
       />
 
       {/* Note popup (mobile): show note in popup when note icon is clicked */}
@@ -863,7 +860,7 @@ export function ExpensesEntriesSection() {
         createPortal(
           <div
             role="dialog"
-            aria-label="Note"
+            aria-label={t("entries_note")}
             className="fixed inset-0 z-[200] flex items-center justify-center p-4"
             onClick={() => setNotePopup(null)}
           >
@@ -875,7 +872,7 @@ export function ExpensesEntriesSection() {
               onClick={(e) => e.stopPropagation()}
             >
               <p className={cn("mb-1 text-xs font-medium", isDark ? "text-slate-400" : "text-slate-500")}>
-                Note — {notePopup.day} {monthLabel} {year}
+                {t("entries_note")} — {notePopup.day} {monthLabel} {year}
               </p>
               <p className={cn("whitespace-pre-wrap text-sm", isDark ? "text-slate-200" : "text-slate-800")}>
                 {notePopup.note}

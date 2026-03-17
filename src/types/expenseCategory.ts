@@ -20,6 +20,8 @@ export interface ExpenseCategory {
   name: string;
   icon: ExpenseCategoryIconType;
   gradientPreset: GradientPresetId;
+  /** If set, this monthly category is linked to a yearly category; its types are synced as yearly types */
+  yearlyCategoryId?: string | null;
 }
 
 /** Expense Type: e.g. Bazar, House Rent, Utilities - linked to ExpenseCategory */
@@ -32,6 +34,8 @@ export interface ExpenseType {
   mainCategoryId?: string;
   /** Optional group — for grouping types in list view */
   group?: string;
+  /** Only for yearly types: ID of monthly expense type this was synced from; unset if added manually */
+  sourceMonthlyTypeId?: string;
 }
 
 /** Preset gradient for UI — rounded color only, no name */

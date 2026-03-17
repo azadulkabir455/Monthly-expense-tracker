@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { useExpenseCategories, useExpenseTypes } from "@/lib/firebase/expenses";
+import { useYearlyCategories, useYearlyTypes } from "@/lib/firebase/yearly";
 import { getWishlistErrorMessage } from "@/lib/firebase/wishlist/errors";
 import { SelectDropdown, type SelectOption } from "@/blocks/components/shared/SelectDropdown";
 import {
@@ -25,23 +26,38 @@ interface AddBudgetItemModalProps {
   open: boolean;
   onClose: () => void;
   year: number;
-  month: number;
+  month?: number;
   categoryId: string;
-  /** Expense type IDs already in the budget list for this month (same category). These will be disabled in the dropdown. */
+  /** Expense type IDs already in the budget list (same category). Disabled in dropdown. */
   existingBudgetTypeIds?: string[];
+  /** "yearly" = yearly budget (no month, yearly types); "monthly" = per month */
+  variant?: "monthly" | "yearly";
   onAdd: (data: {
     name: string;
     amount: number;
     year: number;
-    month: number;
+    month?: number;
     categoryId: string;
     expenseTypeId?: string;
   }) => Promise<void>;
 }
 
-export function AddBudgetItemModal({ open, onClose, year, month, categoryId, existingBudgetTypeIds = [], onAdd }: AddBudgetItemModalProps) {
-  const { categories } = useExpenseCategories();
-  const { types: expenseTypes } = useExpenseTypes();
+export function AddBudgetItemModal({
+  open,
+  onClose,
+  year,
+  month = 1,
+  categoryId,
+  existingBudgetTypeIds = [],
+  variant = "monthly",
+  onAdd,
+}: AddBudgetItemModalProps) {
+  const monthlyCategories = useExpenseCategories();
+  const monthlyTypes = useExpenseTypes();
+  const yearlyCategories = useYearlyCategories();
+  const yearlyTypes = useYearlyTypes();
+  const categories = variant === "yearly" ? yearlyCategories.categories : monthlyCategories.categories;
+  const expenseTypes = variant === "yearly" ? yearlyTypes.types : monthlyTypes.types;
   const { theme } = useThemeContext();
   const isDark = theme === "dark";
   const [amount, setAmount] = useState("");
@@ -108,11 +124,11 @@ export function AddBudgetItemModal({ open, onClose, year, month, categoryId, exi
         name: selectedTypeName,
         amount: amt,
         year,
-        month,
+        ...(variant === "monthly" ? { month } : {}),
         categoryId,
         expenseTypeId: expenseTypeId || undefined,
       });
-      toast.success("Daily budget added.");
+      toast.success(variant === "yearly" ? "Yearly budget item added." : "Daily budget added.");
       onClose();
     } catch (err) {
       toast.error(getWishlistErrorMessage(err, "add", "budgetItem"));

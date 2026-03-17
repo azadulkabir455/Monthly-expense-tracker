@@ -11,10 +11,12 @@ import { AddWishPriorityModal } from "@/blocks/components/AddWishPriorityModal";
 import { Button } from "@/blocks/elements/Button";
 import { Flag } from "lucide-react";
 import { useWishlistTypes } from "@/lib/firebase/wishlist";
+import { useLanguage } from "@/context/LanguageContext";
 
 export function WishPrioritySection() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const { addType } = useWishlistTypes();
+  const { t } = useLanguage();
 
   const handleAdd = async (name: string, order: number) => {
     await addType(name, order);
@@ -24,9 +26,9 @@ export function WishPrioritySection() {
     <SectionCard>
       <SectionHeader>
         <div>
-          <SectionTitle>Add Priority Type</SectionTitle>
+          <SectionTitle>{t("wishlist_addPriorityType")}</SectionTitle>
           <SectionSubtitle>
-            Create priority types for your wish list (e.g. High, Medium, Low). Lower order = higher priority.
+            {t("wishlist_addPrioritySubtitle")}
           </SectionSubtitle>
         </div>
         <Button
@@ -36,7 +38,7 @@ export function WishPrioritySection() {
           onClick={() => setAddModalOpen(true)}
         >
           <Flag className="mr-1.5 h-4 w-4" />
-          Add Priority Type
+          {t("wishlist_addPriorityType")}
         </Button>
       </SectionHeader>
 

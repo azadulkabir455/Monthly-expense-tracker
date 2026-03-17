@@ -15,6 +15,7 @@ import {
 import { Tag, Pencil, Trash2, MoreVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { EditExpenseTypeModal } from "@/blocks/components/EditExpenseTypeModal";
 import { ConfirmModal } from "@/blocks/components/shared/ConfirmModal";
 import { Skeleton } from "@/blocks/elements/Skeleton";
@@ -30,6 +31,7 @@ export function ExpenseTypeListSection({
   const isDark = theme === "dark";
   const { categories, loading: categoriesLoading } = useExpenseCategories();
   const { types: allTypes, loading: typesLoading, deleteType } = useExpenseTypes();
+  const { t } = useLanguage();
   const [editingType, setEditingType] = useState<ExpenseType | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ExpenseType | null>(null);
@@ -67,7 +69,7 @@ export function ExpenseTypeListSection({
     if (!deleteTarget) return;
     try {
       await deleteType(deleteTarget.id);
-      toast.success("Expense type deleted.");
+      toast.success(t("monthlyCategory_typeDeleted"));
       setConfirmModalOpen(false);
       setDeleteTarget(null);
     } catch (err) {
@@ -79,8 +81,8 @@ export function ExpenseTypeListSection({
     <SectionCard>
       <SectionHeader>
         <div>
-          <SectionTitle>Type List</SectionTitle>
-          <SectionSubtitle>All expense types — filter by category above.</SectionSubtitle>
+          <SectionTitle>{t("monthlyCategory_typeListTitle")}</SectionTitle>
+          <SectionSubtitle>{t("monthlyCategory_typeListSubtitle")}</SectionSubtitle>
         </div>
       </SectionHeader>
 
@@ -103,11 +105,11 @@ export function ExpenseTypeListSection({
         </ul>
       ) : (
       <ul className="space-y-2 sm:space-y-3 overflow-visible">
-        {types.map((t) => {
-          const cat = categories.find((c) => c.id === t.categoryId);
+        {types.map((typeItem) => {
+          const cat = categories.find((c) => c.id === typeItem.categoryId);
           return (
           <li
-            key={t.id}
+            key={typeItem.id}
             className={cn(
               "relative flex items-center gap-3 rounded-xl border px-4 py-3 overflow-visible",
               isDark ? "border-white/10 bg-white/5" : "border-slate-100 bg-slate-50/60"
@@ -118,7 +120,7 @@ export function ExpenseTypeListSection({
             />
             <div className="flex-1 min-w-0">
               <span className={cn("font-medium block", isDark ? "text-white" : "text-slate-800")}>
-                {t.name}
+                {typeItem.name}
               </span>
               {cat && (
                 <span
@@ -136,7 +138,7 @@ export function ExpenseTypeListSection({
               <div className="sm:hidden">
                 <button
                   type="button"
-                  onClick={() => setOpenActionId(openActionId === t.id ? null : t.id)}
+                  onClick={() => setOpenActionId(openActionId === typeItem.id ? null : typeItem.id)}
                   className={cn(
                     "rounded-lg p-2 transition",
                     isDark ? "text-slate-400 hover:bg-white/10 hover:text-white" : "text-slate-500 hover:bg-slate-200 hover:text-slate-800"
@@ -145,7 +147,7 @@ export function ExpenseTypeListSection({
                 >
                   <MoreVertical className="h-5 w-5" />
                 </button>
-                {openActionId === t.id && (
+                {openActionId === typeItem.id && (
                   <div
                     className={cn(
                       "absolute right-0 top-full z-[100] mt-1 min-w-[120px] overflow-hidden rounded-xl border py-1 shadow-lg",
@@ -155,7 +157,7 @@ export function ExpenseTypeListSection({
                     <button
                       type="button"
                       onClick={() => {
-                        handleEdit(t);
+                        handleEdit(typeItem);
                         setOpenActionId(null);
                       }}
                       className={cn(
@@ -169,7 +171,7 @@ export function ExpenseTypeListSection({
                     <button
                       type="button"
                       onClick={() => {
-                        handleDelete(t);
+                        handleDelete(typeItem);
                         setOpenActionId(null);
                       }}
                       className={cn(
@@ -192,7 +194,7 @@ export function ExpenseTypeListSection({
                     "rounded-lg p-2 transition",
                     isDark ? "text-slate-400 hover:bg-white/10 hover:text-white" : "text-slate-500 hover:bg-slate-200 hover:text-slate-800"
                   )}
-                  aria-label="Edit"
+                  aria-label={t("common_edit")}
                 >
                   <Pencil className="h-4 w-4" />
                 </button>
@@ -203,7 +205,7 @@ export function ExpenseTypeListSection({
                     "rounded-lg p-2 transition",
                     isDark ? "text-slate-400 hover:bg-red-500/20 hover:text-red-400" : "text-slate-500 hover:bg-red-100 hover:text-red-600"
                   )}
-                  aria-label="Delete"
+                  aria-label={t("common_delete")}
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -217,7 +219,9 @@ export function ExpenseTypeListSection({
 
       {!categoriesLoading && !typesLoading && types.length === 0 && (
         <p className={cn("py-8 text-center text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
-          {selectedCategoryId ? "No types in this category." : "No expense types yet. Add one above."}
+          {selectedCategoryId
+            ? t("monthlyCategory_typeEmptyInCategory")
+            : t("monthlyCategory_typeEmptyGlobal")}
         </p>
       )}
 

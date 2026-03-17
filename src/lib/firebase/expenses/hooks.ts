@@ -14,11 +14,22 @@ import {
   deleteExpenseCategory as deleteApi,
 } from "@/lib/firebase/expenses/categories";
 import {
+  syncMonthlyCategoryTypesToYearly,
+  removeSyncedYearlyTypesForMonthlyCategory,
+} from "@/lib/firebase/expenses/syncYearly";
+import { getExpenseTypes } from "@/lib/firebase/expenses/types";
+import {
   subscribeExpenseTypes,
   addExpenseType as addTypeApi,
   updateExpenseType as updateTypeApi,
   deleteExpenseType as deleteTypeApi,
 } from "@/lib/firebase/expenses/types";
+import {
+  getYearlyTypes,
+  addYearlyType as addYearlyTypeApi,
+  updateYearlyType as updateYearlyTypeApi,
+  deleteYearlyType as deleteYearlyTypeApi,
+} from "@/lib/firebase/yearly/types";
 import {
   subscribeExpenseEntries,
   addExpenseEntry as addEntryApi,
@@ -69,24 +80,46 @@ export function useExpenseCategories() {
   const addCategory = async (
     name: string,
     icon: string,
-    gradientPreset: string
+    gradientPreset: string,
+    yearlyCategoryId?: string | null
   ) => {
     const currentUid = await ensureAuth();
-    return addApi(currentUid, { name, icon, gradientPreset });
+    return addApi(currentUid, { name, icon, gradientPreset, yearlyCategoryId });
   };
 
   const updateCategory = async (
     id: string,
     name: string,
     icon: string,
-    gradientPreset: string
+    gradientPreset: string,
+    yearlyCategoryId?: string | null
   ) => {
     const currentUid = await ensureAuth();
-    return updateApi(currentUid, id, { name, icon, gradientPreset });
+    const prev = categories.find((c) => c.id === id);
+    const prevYearlyId = prev?.yearlyCategoryId ?? undefined;
+    await updateApi(currentUid, id, { name, icon, gradientPreset, yearlyCategoryId });
+    if (prevYearlyId && !yearlyCategoryId) {
+      const monthlyTypes = await getExpenseTypes(currentUid);
+      const typeIds = monthlyTypes.filter((t) => t.categoryId === id).map((t) => t.id);
+      await removeSyncedYearlyTypesForMonthlyCategory(currentUid, prevYearlyId, typeIds);
+    } else if (yearlyCategoryId) {
+      if (prevYearlyId && prevYearlyId !== yearlyCategoryId) {
+        const monthlyTypes = await getExpenseTypes(currentUid);
+        const typeIds = monthlyTypes.filter((t) => t.categoryId === id).map((t) => t.id);
+        await removeSyncedYearlyTypesForMonthlyCategory(currentUid, prevYearlyId, typeIds);
+      }
+      await syncMonthlyCategoryTypesToYearly(currentUid, id, yearlyCategoryId);
+    }
   };
 
   const deleteCategory = async (id: string) => {
     const currentUid = await ensureAuth();
+    const cat = categories.find((c) => c.id === id);
+    if (cat?.yearlyCategoryId) {
+      const monthlyTypes = await getExpenseTypes(currentUid);
+      const typeIds = monthlyTypes.filter((t) => t.categoryId === id).map((t) => t.id);
+      await removeSyncedYearlyTypesForMonthlyCategory(currentUid, cat.yearlyCategoryId, typeIds);
+    }
     return deleteApi(currentUid, id);
   };
 
@@ -140,19 +173,38 @@ export function useExpenseTypes() {
     return user.uid;
   };
 
-  const addType = async (data: Omit<ExpenseType, "id">) => {
+  const addType = async (
+    data: Omit<ExpenseType, "id">,
+    yearlyCategoryId?: string | null
+  ) => {
     const currentUid = await ensureAuth();
-    return addTypeApi(currentUid, data);
+    const newType = await addTypeApi(currentUid, data);
+    if (yearlyCategoryId) {
+      await addYearlyTypeApi(currentUid, {
+        name: newType.name,
+        categoryId: yearlyCategoryId,
+        sourceMonthlyTypeId: newType.id,
+      });
+    }
+    return newType;
   };
 
   const updateType = async (id: string, data: Partial<Omit<ExpenseType, "id">>) => {
     const currentUid = await ensureAuth();
-    return updateTypeApi(currentUid, id, data);
+    await updateTypeApi(currentUid, id, data);
+    const yearlyTypes = await getYearlyTypes(currentUid);
+    const synced = yearlyTypes.find((t) => t.sourceMonthlyTypeId === id);
+    if (synced && data.name != null) {
+      await updateYearlyTypeApi(currentUid, synced.id, { name: data.name });
+    }
   };
 
   const deleteType = async (id: string) => {
     const currentUid = await ensureAuth();
-    return deleteTypeApi(currentUid, id);
+    const yearlyTypes = await getYearlyTypes(currentUid);
+    const synced = yearlyTypes.find((t) => t.sourceMonthlyTypeId === id);
+    if (synced) await deleteYearlyTypeApi(currentUid, synced.id);
+    await deleteTypeApi(currentUid, id);
   };
 
   return {

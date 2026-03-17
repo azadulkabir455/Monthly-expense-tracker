@@ -7,7 +7,6 @@ import { signOut } from "@/lib/firebase/auth";
 import {
   LayoutDashboard,
   LogOut,
-  Wallet,
   Heart,
   FileText,
   PiggyBank,
@@ -19,61 +18,85 @@ import {
   Receipt,
   Home,
   SlidersHorizontal,
+  Calendar,
+  ClipboardList,
+  CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/blocks/components/shared/ThemeToggle";
+import { LanguageToggle } from "@/blocks/components/shared/LanguageToggle";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useLanguage } from "@/context/LanguageContext";
 
-type NavLink = { href: string; label: string; icon: typeof LayoutDashboard };
+type NavLink = { href: string; labelKey: string; icon: typeof LayoutDashboard };
 type NavGroup = {
-  label: string;
-  icon: typeof Heart | typeof Receipt;
-  groupKey: "wishlist" | "expenses";
-  children: { href: string; label: string; icon: typeof FileText }[];
+  labelKey: string;
+  icon: typeof Heart | typeof Receipt | typeof Calendar;
+  groupKey: "wishlist" | "expenses" | "yearly";
+  children: { href: string; labelKey: string; icon: typeof FileText }[];
 };
 
 const nav: (NavLink | NavGroup)[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard", labelKey: "nav_dashboard", icon: LayoutDashboard },
   {
-    label: "Wishlist",
+    labelKey: "nav_wishlist",
     icon: Heart,
     groupKey: "wishlist",
     children: [
-      { href: "/dashboard/wishlist", label: "Wishlist", icon: FileText },
-      { href: "/dashboard/wishlist/category", label: "Wish Category", icon: FolderOpen },
+      { href: "/dashboard/wishlist", labelKey: "nav_wishlist", icon: FileText },
+      { href: "/dashboard/wishlist/category", labelKey: "nav_wishCategory", icon: FolderOpen },
     ],
   },
   {
-    label: "Expenses",
+    labelKey: "nav_monthlyExpense",
     icon: Receipt,
     groupKey: "expenses",
     children: [
-      { href: "/dashboard/expenses/entries", label: "Expenses Entries", icon: FileText },
-      { href: "/dashboard/expenses/category", label: "Expenses Category", icon: Tag },
-      { href: "/dashboard/expenses/budget", label: "Monthly Budget", icon: PiggyBank },
+      { href: "/dashboard/expenses/entries", labelKey: "nav_monthlyEntries", icon: ClipboardList },
+      { href: "/dashboard/expenses/category", labelKey: "nav_monthlyCategory", icon: Tag },
+      { href: "/dashboard/expenses/budget", labelKey: "nav_monthlyBudget", icon: PiggyBank },
     ],
   },
-  { href: "/dashboard/customization", label: "Customization", icon: SlidersHorizontal },
+  {
+    labelKey: "nav_yearlyExpense",
+    icon: Calendar,
+    groupKey: "yearly",
+    children: [
+      { href: "/dashboard/yearly/entries", labelKey: "nav_yearlyEntries", icon: CalendarDays },
+      { href: "/dashboard/yearly/category", labelKey: "nav_yearlyCategory", icon: Tag },
+      { href: "/dashboard/yearly/budget", labelKey: "nav_yearlyBudget", icon: PiggyBank },
+    ],
+  },
+  { href: "/dashboard/customization", labelKey: "nav_customization", icon: SlidersHorizontal },
 ];
 
 const mobileTabs = [
-  { href: "/dashboard/expenses/budget", label: "Budget", icon: PiggyBank },
-  { href: "/dashboard/expenses/entries", label: "Expenses", icon: FileText },
-  { href: "/dashboard", label: "Home", icon: Home },
-  { href: "/dashboard/wishlist", label: "Wishlist", icon: Heart },
-  { href: "#more", label: "More", icon: MoreHorizontal, isMore: true },
+  // Left: Wishlist
+  { href: "/dashboard/wishlist", labelKey: "nav_wishlist", icon: Heart },
+  // Left-center: Yearly Entries
+  { href: "/dashboard/yearly/entries", labelKey: "nav_yearlyEntries", icon: CalendarDays },
+  // Center: Home
+  { href: "/dashboard", labelKey: "nav_home", icon: Home },
+  // Right-center: Monthly Entries
+  { href: "/dashboard/expenses/entries", labelKey: "nav_monthlyEntries", icon: ClipboardList },
+  // Right: More
+  { href: "#more", labelKey: "nav_more", icon: MoreHorizontal, isMore: true },
 ];
 
 const moreLinks = [
-  { href: "/dashboard/wishlist/category", label: "Wish Category", icon: FolderOpen },
-  { href: "/dashboard/expenses/category", label: "Expenses Category", icon: Tag },
-  { href: "/dashboard/customization", label: "Customization", icon: SlidersHorizontal },
+  { href: "/dashboard/wishlist/category", labelKey: "nav_wishCategory", icon: FolderOpen },
+  { href: "/dashboard/expenses/budget", labelKey: "nav_monthlyBudget", icon: PiggyBank },
+  { href: "/dashboard/expenses/category", labelKey: "nav_monthlyCategory", icon: Tag },
+  { href: "/dashboard/yearly/category", labelKey: "nav_yearlyCategory", icon: Tag },
+  { href: "/dashboard/yearly/budget", labelKey: "nav_yearlyBudget", icon: PiggyBank },
+  { href: "/dashboard/customization", labelKey: "nav_customization", icon: SlidersHorizontal },
 ];
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { theme } = useThemeContext();
+  const { t } = useLanguage();
 
   const handleLogout = async () => {
     await signOut();
@@ -82,8 +105,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [moreSheetOpen, setMoreSheetOpen] = useState(false);
   const isWishlistActive = pathname.startsWith("/dashboard/wishlist");
   const isExpensesActive = pathname.startsWith("/dashboard/expenses");
+  const isYearlyActive = pathname.startsWith("/dashboard/yearly");
   const [wishListOpen, setWishListOpen] = useState(isWishlistActive);
   const [expensesOpen, setExpensesOpen] = useState(isExpensesActive);
+  const [yearlyOpen, setYearlyOpen] = useState(isYearlyActive);
 
   useEffect(() => {
     if (isWishlistActive) setWishListOpen(true);
@@ -92,6 +117,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isExpensesActive) setExpensesOpen(true);
   }, [isExpensesActive]);
+
+  useEffect(() => {
+    if (isYearlyActive) setYearlyOpen(true);
+  }, [isYearlyActive]);
 
   useEffect(() => {
     setMoreSheetOpen(false);
@@ -131,7 +160,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         )}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-[#ddd] dark:border-white/10">
-          <span className={cn("font-semibold", isDark ? "text-white" : "text-slate-800")}>More</span>
+          <span className={cn("font-semibold", isDark ? "text-white" : "text-slate-800")}>{t("nav_more")}</span>
           <button
             type="button"
             onClick={() => setMoreSheetOpen(false)}
@@ -153,7 +182,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               )}
             >
               <link.icon className="h-5 w-5 shrink-0" />
-              {link.label}
+              {t(link.labelKey)}
             </Link>
           ))}
           <div className={cn("my-2 border-t", isDark ? "border-white/10" : "border-[#ddd]")} />
@@ -181,8 +210,18 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           isDark ? "border-r border-white/10 bg-violet-950/20 shadow-elevated backdrop-blur-xl" : "border-r border-[#ddd] bg-white shadow-elevated"
         )}
       >
-        <div className={cn("flex h-16 shrink-0 items-center justify-center border-b px-4", isDark ? "border-white/10" : "border-[#ddd]")}>
-          <div className="relative flex h-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-transparent">
+        <div
+          className={cn(
+            "flex h-16 shrink-0 items-center justify-center border-b px-4",
+            isDark ? "border-white/10" : "border-[#ddd] bg-[#57595B]"
+          )}
+        >
+          <div
+            className={cn(
+              "relative flex h-12 shrink-0 items-center justify-center overflow-hidden rounded-xl px-2",
+              "bg-transparent"
+            )}
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/maserhisab.png" alt="মাসের হিসাব" className="h-9 w-auto object-contain" />
           </div>
@@ -196,34 +235,42 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 className={cn(
                   "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition",
                   pathname === item.href
-                    ? isDark ? "bg-gradient-to-r from-violet-500/25 to-fuchsia-500/15 text-white shadow-sm" : "bg-gradient-to-r from-violet-500/15 to-fuchsia-500/10 text-violet-700 shadow-sm"
-                    : isDark ? "text-slate-400 hover:bg-white/5 hover:text-white" : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
+                    ? isDark
+                      ? "bg-gradient-to-r from-violet-500/25 to-fuchsia-500/15 text-white shadow-sm"
+                      : "bg-gradient-to-r from-violet-500/15 to-fuchsia-500/10 text-slate-900 shadow-sm"
+                    : isDark
+                      ? "text-slate-400 hover:bg-white/5 hover:text-white"
+                      : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
                 )}
               >
                 <item.icon className="h-5 w-5 shrink-0" />
-                {item.label}
+                {t(item.labelKey)}
               </Link>
             ) : (
               (() => {
                 const grp = item as NavGroup;
-                const isOpen = grp.groupKey === "wishlist" ? wishListOpen : expensesOpen;
-                const setIsOpen = grp.groupKey === "wishlist" ? setWishListOpen : setExpensesOpen;
-                const isActive = grp.groupKey === "wishlist" ? isWishlistActive : isExpensesActive;
+                const isOpen = grp.groupKey === "wishlist" ? wishListOpen : grp.groupKey === "yearly" ? yearlyOpen : expensesOpen;
+                const setIsOpen = grp.groupKey === "wishlist" ? setWishListOpen : grp.groupKey === "yearly" ? setYearlyOpen : setExpensesOpen;
+                const isActive = grp.groupKey === "wishlist" ? isWishlistActive : grp.groupKey === "yearly" ? isYearlyActive : isExpensesActive;
                 return (
-                  <div key={item.label} className="space-y-1">
+                  <div key={grp.labelKey} className="space-y-1">
                     <button
                       type="button"
                       onClick={() => setIsOpen(!isOpen)}
                       className={cn(
                         "flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition",
                         isActive
-                          ? isDark ? "bg-gradient-to-r from-violet-500/25 to-fuchsia-500/15 text-white shadow-sm" : "bg-gradient-to-r from-violet-500/15 to-fuchsia-500/10 text-violet-700 shadow-sm"
-                          : isDark ? "text-slate-400 hover:bg-white/5 hover:text-white" : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
+                          ? isDark
+                            ? "bg-gradient-to-r from-violet-500/25 to-fuchsia-500/15 text-white shadow-sm"
+                            : "bg-gradient-to-r from-violet-500/15 to-fuchsia-500/10 text-slate-900 shadow-sm"
+                          : isDark
+                            ? "text-slate-400 hover:bg-white/5 hover:text-white"
+                            : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
                       )}
                     >
                       <div className="flex items-center gap-3">
                         <item.icon className="h-5 w-5 shrink-0" />
-                        {item.label}
+                        {t(grp.labelKey)}
                       </div>
                       <ChevronDown className={cn("h-5 w-5 shrink-0 transition-transform", isOpen && "rotate-180")} />
                     </button>
@@ -236,12 +283,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                             className={cn(
                               "flex items-center gap-3 rounded-xl px-3 py-2.5 pl-6 text-sm font-medium transition",
                               pathname === sub.href
-                                ? isDark ? "bg-gradient-to-r from-violet-500/25 to-fuchsia-500/15 text-white shadow-sm" : "bg-gradient-to-r from-violet-500/15 to-fuchsia-500/10 text-violet-700 shadow-sm"
-                                : isDark ? "text-slate-400 hover:bg-white/5 hover:text-white" : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
+                                ? isDark
+                                  ? "bg-gradient-to-r from-violet-500/25 to-fuchsia-500/15 text-white shadow-sm"
+                                  : "bg-gradient-to-r from-violet-500/15 to-fuchsia-500/10 text-slate-900 shadow-sm"
+                                : isDark
+                                  ? "text-slate-400 hover:bg-white/5 hover:text-white"
+                                  : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
                             )}
                           >
                             <sub.icon className="h-5 w-5 shrink-0" />
-                            {sub.label}
+                            {t(sub.labelKey)}
                           </Link>
                         ))}
                       </div>
@@ -259,7 +310,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             className={cn("flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition", isDark ? "text-slate-400 hover:bg-white/5 hover:text-white" : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900")}
           >
             <LogOut className="h-5 w-5" />
-            Logout
+            {t("nav_logout")}
           </button>
         </div>
       </aside>
@@ -281,7 +332,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             <img src="/maserhisab.png" alt="মাসের হিসাব" className="h-9 w-auto object-contain" />
           </span>
         </div>
-        <div className="flex shrink-0">
+        <div className="flex shrink-0 items-center gap-2">
+          <LanguageToggle className="relative" />
           <ThemeToggle className="relative" />
         </div>
       </header>
@@ -293,7 +345,36 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           "min-h-[calc(100vh-3rem)] sm:min-h-[calc(100vh-3.5rem)] lg:min-h-[calc(100vh-4rem)]"
         )}
       >
-        <div className="min-w-0 px-3 py-2 sm:px-4 sm:py-3 md:px-5 md:py-4">{children}</div>
+        <div className="min-w-0 px-3 py-2 pb-24 sm:px-4 sm:py-3 sm:pb-24 md:px-5 md:py-4 md:pb-24">
+          {children}
+        </div>
+        <footer
+          className={cn(
+            "pointer-events-none fixed bottom-3 left-0 right-0 z-20 flex justify-center",
+            "sm:bottom-4"
+          )}
+        >
+          <div
+            className={cn(
+              "pointer-events-auto rounded-full px-3.5 py-1.5 text-xs shadow-sm flex items-center gap-1.5",
+              isDark ? "bg-slate-900/90 text-slate-300" : "bg-slate-300/95 text-slate-800"
+            )}
+          >
+            <span>© 2026 • Made with love by</span>
+            <a
+              href="https://www.linkedin.com/in/azadulkabir/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(
+                "font-semibold underline underline-offset-2",
+                isDark ? "text-slate-200 hover:text-white" : "text-slate-700 hover:text-slate-900"
+              )}
+            >
+              Azad Ul Kabir
+            </a>
+            <span>💙</span>
+          </div>
+        </footer>
       </main>
 
       {/* Mobile bottom tab bar - floating pill style */}
@@ -357,7 +438,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             >
               <tab.icon className="h-5 w-5 shrink-0" strokeWidth={active ? 2.5 : 1.5} />
               <span className={cn("text-[10px] font-medium truncate w-full text-center", active && "font-semibold")}>
-                {tab.label}
+                {t(tab.labelKey)}
               </span>
             </Link>
           );

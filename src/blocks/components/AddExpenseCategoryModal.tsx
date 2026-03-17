@@ -18,31 +18,43 @@ import { Button } from "@/blocks/elements/Button";
 import { Input } from "@/blocks/elements/Input";
 import { Label } from "@/blocks/elements/Label";
 import { IconSearchInput } from "@/blocks/components/shared/IconSearchInput";
+import { SelectDropdown, type SelectOption } from "@/blocks/components/shared/SelectDropdown";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useYearlyCategories } from "@/lib/firebase/yearly";
 
 interface AddExpenseCategoryModalProps {
   open: boolean;
   onClose: () => void;
-  onAdd: (name: string, icon: string, gradientPreset: string) => Promise<void>;
+  onAdd: (name: string, icon: string, gradientPreset: string, yearlyCategoryId?: string | null) => Promise<void>;
+  /** When "yearly", hide "Child of yearly category" (only for monthly category form). */
+  scope?: "monthly" | "yearly";
 }
 
 const GRADIENT_IDS = Object.keys(GRADIENT_PRESETS) as GradientPresetId[];
 
-export function AddExpenseCategoryModal({ open, onClose, onAdd }: AddExpenseCategoryModalProps) {
+export function AddExpenseCategoryModal({ open, onClose, onAdd, scope = "monthly" }: AddExpenseCategoryModalProps) {
   const { theme } = useThemeContext();
   const isDark = theme === "dark";
+  const { categories: yearlyCategories } = useYearlyCategories();
   const [name, setName] = useState("");
   const [icon, setIcon] = useState<ExpenseCategoryIconType>("home");
   const [gradientPreset, setGradientPreset] = useState<GradientPresetId>("violet");
+  const [yearlyCategoryId, setYearlyCategoryId] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
+
+  const yearlyOptions: SelectOption[] = [
+    { value: "", label: "None" },
+    ...yearlyCategories.map((c) => ({ value: c.id, label: c.name })),
+  ];
 
   useEffect(() => {
     if (open) {
       setName("");
       setIcon("home");
       setGradientPreset("violet");
+      setYearlyCategoryId("");
     }
   }, [open]);
 
@@ -65,7 +77,7 @@ export function AddExpenseCategoryModal({ open, onClose, onAdd }: AddExpenseCate
     if (!name.trim() || submitting) return;
     setSubmitting(true);
     try {
-      await onAdd(name.trim(), icon, gradientPreset);
+      await onAdd(name.trim(), icon, gradientPreset, scope === "monthly" ? yearlyCategoryId || null : undefined);
       toast.success("Expense category added.");
       onClose();
     } catch (err) {
@@ -107,6 +119,18 @@ export function AddExpenseCategoryModal({ open, onClose, onAdd }: AddExpenseCate
                 required
               />
             </div>
+            {scope === "monthly" && (
+              <div className="space-y-2">
+                <Label>Child of yearly category</Label>
+                <SelectDropdown
+                  options={yearlyOptions}
+                  value={yearlyCategoryId}
+                  onChange={(v) => setYearlyCategoryId(String(v))}
+                  label=""
+                  className="w-full"
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <IconSearchInput
                 value={icon}

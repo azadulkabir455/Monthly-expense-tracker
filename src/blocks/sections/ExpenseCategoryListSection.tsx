@@ -12,10 +12,11 @@ import {
   SectionTitle,
   SectionSubtitle,
 } from "@/blocks/elements/SectionCard";
-import { DynamicIcon } from "lucide-react/dynamic";
+import { DynamicIcon, type IconName } from "lucide-react/dynamic";
 import { Pencil, Trash2, Home, MoreVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { EditExpenseCategoryModal } from "@/blocks/components/EditExpenseCategoryModal";
 import { ConfirmModal } from "@/blocks/components/shared/ConfirmModal";
 import { Skeleton } from "@/blocks/elements/Skeleton";
@@ -23,6 +24,7 @@ import { Skeleton } from "@/blocks/elements/Skeleton";
 export function ExpenseCategoryListSection() {
   const { theme } = useThemeContext();
   const isDark = theme === "dark";
+  const { t } = useLanguage();
   const { categories, loading, updateCategory, deleteCategory } = useExpenseCategories();
   const [editingCategory, setEditingCategory] = useState<ExpenseCategory | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -53,7 +55,7 @@ export function ExpenseCategoryListSection() {
     if (!deleteTarget) return;
     try {
       await deleteCategory(deleteTarget.id);
-      toast.success("Expense category deleted.");
+      toast.success(t("monthlyCategory_categoryDeleted"));
     } catch (err) {
       toast.error(getWishlistErrorMessage(err, "delete", "expenseCategory"));
     }
@@ -63,17 +65,18 @@ export function ExpenseCategoryListSection() {
     id: string,
     name: string,
     icon: string,
-    gradientPreset: string
+    gradientPreset: string,
+    yearlyCategoryId?: string | null
   ) => {
-    await updateCategory(id, name, icon, gradientPreset);
+    await updateCategory(id, name, icon, gradientPreset, yearlyCategoryId);
   };
 
   return (
     <SectionCard className={cn("relative overflow-visible", openActionId && "z-20")}>
       <SectionHeader>
         <div>
-          <SectionTitle>Category List</SectionTitle>
-          <SectionSubtitle>All expense categories with icon and color.</SectionSubtitle>
+          <SectionTitle>{t("monthlyCategory_categoryListTitle")}</SectionTitle>
+          <SectionSubtitle>{t("monthlyCategory_categoryListSubtitle")}</SectionSubtitle>
         </div>
       </SectionHeader>
 
@@ -111,7 +114,12 @@ export function ExpenseCategoryListSection() {
                   background: `linear-gradient(to right, ${preset.fromColor}, ${preset.toColor})`,
                 }}
               >
-                <DynamicIcon name={cat.icon} fallback={Home} className="h-5 w-5" strokeWidth={2} />
+                <DynamicIcon
+                  name={(cat.icon as IconName) || "folder"}
+                  fallback={() => <Home className="h-5 w-5" strokeWidth={2} />}
+                  className="h-5 w-5"
+                  strokeWidth={2}
+                />
               </span>
               <span className={cn("flex-1 font-medium", isDark ? "text-white" : "text-slate-800")}>
                 {cat.name}
@@ -162,7 +170,7 @@ export function ExpenseCategoryListSection() {
                         )}
                       >
                         <Pencil className="h-4 w-4" />
-                        Edit
+                        {t("common_edit")}
                       </button>
                       <button
                         type="button"
@@ -176,7 +184,7 @@ export function ExpenseCategoryListSection() {
                         )}
                       >
                         <Trash2 className="h-4 w-4" />
-                        Delete
+                        {t("common_delete")}
                       </button>
                     </div>
                   )}
@@ -190,7 +198,7 @@ export function ExpenseCategoryListSection() {
                       "rounded-lg p-2 transition",
                       isDark ? "text-slate-400 hover:bg-white/10 hover:text-white" : "text-slate-500 hover:bg-slate-200 hover:text-slate-800"
                     )}
-                    aria-label="Edit"
+                    aria-label={t("common_edit")}
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
@@ -201,7 +209,7 @@ export function ExpenseCategoryListSection() {
                       "rounded-lg p-2 transition",
                       isDark ? "text-slate-400 hover:bg-red-500/20 hover:text-red-400" : "text-slate-500 hover:bg-red-100 hover:text-red-600"
                     )}
-                    aria-label="Delete"
+                    aria-label={t("common_delete")}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -215,7 +223,7 @@ export function ExpenseCategoryListSection() {
 
       {!loading && categories.length === 0 && (
         <p className={cn("py-8 text-center text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
-          No data. Add an expense category above.
+          {t("common_empty")}
         </p>
       )}
 
@@ -235,10 +243,10 @@ export function ExpenseCategoryListSection() {
           setDeleteTarget(null);
         }}
         onConfirm={handleConfirmDelete}
-        title="Delete Category"
-        message={deleteTarget ? `Delete "${deleteTarget.name}"?` : ""}
-        confirmLabel="Sure"
-        cancelLabel="Cancel"
+        title={t("monthlyCategory_categoryDeleteTitle")}
+        message={deleteTarget ? t("monthlyCategory_categoryDeleteMessage", { name: deleteTarget.name }) : ""}
+        confirmLabel={t("monthlyCategory_categoryDeleteConfirm")}
+        cancelLabel={t("monthlyCategory_categoryDeleteCancel")}
       />
     </SectionCard>
   );

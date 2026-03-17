@@ -9,21 +9,23 @@ import {
 } from "@/blocks/elements/SectionCard";
 import { useColorThemeContext, COLOR_THEMES } from "@/context/ColorThemeContext";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
 
 export function ColorThemeSection() {
   const { colorTheme, setColorTheme } = useColorThemeContext();
   const { theme } = useThemeContext();
+  const { t } = useLanguage();
   const isDark = theme === "dark";
 
   return (
     <SectionCard>
       <SectionHeader>
         <div>
-          <SectionTitle>Color Theme</SectionTitle>
+          <SectionTitle>{t("customization_colorTitle")}</SectionTitle>
           <SectionSubtitle>
-            Choose a preset color theme. Colors are catchy yet easy on the eyes.
+            {t("customization_colorSubtitle")}
           </SectionSubtitle>
         </div>
       </SectionHeader>

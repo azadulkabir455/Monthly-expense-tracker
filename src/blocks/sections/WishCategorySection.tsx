@@ -11,10 +11,12 @@ import { AddWishCategoryModal } from "@/blocks/components/AddWishCategoryModal";
 import { Button } from "@/blocks/elements/Button";
 import { FolderPlus } from "lucide-react";
 import { useWishlistCategories } from "@/lib/firebase/wishlist";
+import { useLanguage } from "@/context/LanguageContext";
 
 export function WishCategorySection() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const { addCategory } = useWishlistCategories();
+  const { t } = useLanguage();
 
   const handleAdd = async (name: string) => {
     await addCategory(name);
@@ -24,9 +26,9 @@ export function WishCategorySection() {
     <SectionCard>
       <SectionHeader>
         <div>
-          <SectionTitle>Add Wish Category</SectionTitle>
+          <SectionTitle>{t("wishlist_addCategory")}</SectionTitle>
           <SectionSubtitle>
-            Create a new category for your wish list with name and priority.
+            {t("wishlist_categorySubtitle")}
           </SectionSubtitle>
         </div>
         <Button
@@ -36,7 +38,7 @@ export function WishCategorySection() {
           onClick={() => setAddModalOpen(true)}
         >
           <FolderPlus className="mr-1.5 h-4 w-4" />
-          Add Wish Category
+          {t("wishlist_addCategory")}
         </Button>
       </SectionHeader>
 

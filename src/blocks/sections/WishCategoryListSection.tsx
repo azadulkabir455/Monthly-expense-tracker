@@ -14,12 +14,14 @@ import {
 import { FolderOpen, Pencil, Trash2, MoreVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { EditWishCategoryModal } from "@/blocks/components/EditWishCategoryModal";
 import { ConfirmModal } from "@/blocks/components/shared/ConfirmModal";
 import { Skeleton } from "@/blocks/elements/Skeleton";
 
 export function WishCategoryListSection() {
   const { theme } = useThemeContext();
+  const { t } = useLanguage();
   const isDark = theme === "dark";
   const { categories, loading, updateCategory, deleteCategory } = useWishlistCategories();
   const [editingCategory, setEditingCategory] = useState<WishCategory | null>(null);
@@ -66,9 +68,9 @@ export function WishCategoryListSection() {
     <SectionCard>
       <SectionHeader>
         <div>
-          <SectionTitle>Category List</SectionTitle>
+          <SectionTitle>{t("wishlist_categoryList")}</SectionTitle>
           <SectionSubtitle>
-            All categories for your wish list.
+            {t("wishlist_categoryListSubtitle")}
           </SectionSubtitle>
         </div>
       </SectionHeader>

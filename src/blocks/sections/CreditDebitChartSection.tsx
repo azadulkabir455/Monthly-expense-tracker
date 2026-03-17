@@ -18,7 +18,8 @@ import { useAppSelector } from "@/store/hooks";
 import { useExpenseCategories, useExpenseTypes, useExpenseEntries } from "@/lib/firebase/expenses";
 import { useBudgetDebitForYear, useBudgetItemsForYear } from "@/lib/firebase/budget";
 import { useThemeContext } from "@/context/ThemeContext";
-import { useStartYear } from "@/hooks/useStartYear";
+import { useLanguage } from "@/context/LanguageContext";
+import { useCalendarYears } from "@/hooks/useCalendarYears";
 import { useClientDate } from "@/hooks/useClientDate";
 import { MonthYearDatePicker } from "@/blocks/components/MonthYearDatePicker";
 import { SelectDropdown, type SelectOption } from "@/blocks/components/shared/SelectDropdown";
@@ -64,19 +65,22 @@ const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "S
 
 export function CreditDebitChartSection() {
   const { theme } = useThemeContext();
+  const { t } = useLanguage();
   const isDark = theme === "dark";
-  const startYear = useStartYear();
-  const { year: currentYear, month: currentMonth0 } = useClientDate();
+  const { year: currentYear, month: currentMonth0, isClient } = useClientDate();
   const currentMonth = currentMonth0 + 1;
-  const years = useMemo(
-    () =>
-      Array.from({ length: currentYear - startYear + 1 }, (_, i) => currentYear - i),
-    [currentYear, startYear]
-  );
+  const years = useCalendarYears(currentYear);
 
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState<number>(currentMonth);
   const [viewAllMonths, setViewAllMonths] = useState(false);
+
+  useEffect(() => {
+    if (isClient) {
+      setSelectedYear(currentYear);
+      setSelectedMonth(currentMonth);
+    }
+  }, [isClient, currentYear, currentMonth]);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [filterModalOpen, setFilterModalOpen] = useState(false);
 
@@ -88,10 +92,10 @@ export function CreditDebitChartSection() {
 
   const categoryOptions: SelectOption[] = useMemo(
     () => [
-      { value: "all", label: "All Categories" },
+      { value: "all", label: t("common_allCategories") },
       ...expenseCategories.map((c) => ({ value: c.id, label: c.name })),
     ],
-    [expenseCategories]
+    [expenseCategories, t]
   );
 
   const typeIdsForCategory = useMemo(
@@ -204,19 +208,26 @@ export function CreditDebitChartSection() {
     };
   }, [showDaily, monthlyData, dailyData, isDark]);
 
+  /** Round up to next step (e.g. 5k) so Y-axis has no broken digits; step in actual units (e.g. 5000). */
+  const roundUpToStep = (value: number, step: number) =>
+    value <= 0 ? step : Math.ceil(value / step) * step;
+
+  const CHART_STEP = 5000; // 5k interval for Y-axis
   const chartYMax = useMemo(() => {
-    const MONTHLY_DEFAULT_MAX = 15000; // 15k for single month (daily) chart
-    const YEARLY_DEFAULT_MAX = 50000; // 50k for yearly debit/credit chart
+    const MONTHLY_DEFAULT_MIN = 15000; // 15k min for daily chart
+    const YEARLY_DEFAULT_MIN = 50000; // 50k min for yearly chart
     if (showDaily) {
       const dataMax = dailyData.length ? Math.max(...dailyData.map((x) => x.credit)) : 0;
-      return Math.max(MONTHLY_DEFAULT_MAX, dataMax);
+      const rawMax = Math.max(MONTHLY_DEFAULT_MIN, dataMax);
+      return roundUpToStep(rawMax, CHART_STEP);
     }
     const dataMax = monthlyData.length
       ? Math.max(
           ...monthlyData.flatMap((x) => [x.debit, x.credit])
         )
       : 0;
-    return Math.max(YEARLY_DEFAULT_MAX, dataMax);
+    const rawMax = Math.max(YEARLY_DEFAULT_MIN, dataMax);
+    return roundUpToStep(rawMax, CHART_STEP);
   }, [showDaily, dailyData, monthlyData]);
 
   const options: ChartOptions<"bar"> = useMemo(
@@ -237,6 +248,7 @@ export function CreditDebitChartSection() {
           grid: { color: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)" },
           ticks: {
             color: isDark ? "#94a3b8" : "#64748b",
+            stepSize: CHART_STEP,
             callback: (v) => formatK(v as number) + " ৳",
           },
         },
@@ -287,7 +299,7 @@ export function CreditDebitChartSection() {
           checked={viewAllMonths}
           onCheckedChange={(checked) => setViewAllMonths(!!checked)}
         />
-        <span className={isDark ? "text-slate-300" : "text-slate-700"}>All months</span>
+        <span className={isDark ? "text-slate-300" : "text-slate-700"}>{t("common_allMonths")}</span>
       </label>
     </>
   );
@@ -315,7 +327,7 @@ export function CreditDebitChartSection() {
           )}
         >
           <div className="flex items-center justify-between px-4 py-3 border-b border-[#ddd] dark:border-white/10">
-            <span id="filter-modal-title" className={cn("font-semibold", isDark ? "text-white" : "text-slate-800")}>Filters</span>
+            <span id="filter-modal-title" className={cn("font-semibold", isDark ? "text-white" : "text-slate-800")}>{t("common_filters")}</span>
             <button
               type="button"
               onClick={() => setFilterModalOpen(false)}
@@ -357,11 +369,11 @@ export function CreditDebitChartSection() {
       <SectionHeader className="flex flex-row flex-wrap items-start justify-between gap-4">
         {/* Left: title upore, description niche */}
         <div className="min-w-0 flex-1">
-          <SectionTitle>Profit and Loss</SectionTitle>
+          <SectionTitle>{t("pnl_title")}</SectionTitle>
           <SectionSubtitle>
             {showDaily
-              ? `Daily credit (expense) for ${MONTH_OPTIONS.find((m) => m.value === selectedMonth)?.label} ${selectedYear}`
-              : `Month-wise debit (income) and credit (expense) for ${selectedYear}`}
+              ? t("pnl_dailySubtitle", { month: MONTH_LABELS[selectedMonth - 1] ?? "", year: String(selectedYear) })
+              : t("pnl_yearlySubtitle", { year: String(selectedYear) })}
           </SectionSubtitle>
         </div>
         {/* Right: mobile filter icon / desktop filters */}

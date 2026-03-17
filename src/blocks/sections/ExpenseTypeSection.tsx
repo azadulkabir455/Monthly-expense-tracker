@@ -12,6 +12,7 @@ import { Button } from "@/blocks/elements/Button";
 import { SelectDropdown, type SelectOption } from "@/blocks/components/shared/SelectDropdown";
 import { useExpenseCategories } from "@/lib/firebase/expenses";
 import { Tag } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface ExpenseTypeSectionProps {
   selectedCategoryId: string;
@@ -24,21 +25,22 @@ export function ExpenseTypeSection({
 }: ExpenseTypeSectionProps) {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const { categories } = useExpenseCategories();
+  const { t } = useLanguage();
   const categoryOptions: SelectOption[] = useMemo(
     () => [
-      { value: "", label: "All" },
+      { value: "", label: t("monthlyCategory_typeFilterAll") },
       ...categories.map((c) => ({ value: c.id, label: c.name })),
     ],
-    [categories]
+    [categories, t]
   );
 
   return (
     <SectionCard>
       <SectionHeader>
         <div>
-          <SectionTitle>Expense Type</SectionTitle>
+          <SectionTitle>{t("monthlyCategory_typeSectionTitle")}</SectionTitle>
           <SectionSubtitle>
-            e.g. Bazar, House Rent, Utilities — plain text types for entries.
+            {t("monthlyCategory_typeSectionSubtitle")}
           </SectionSubtitle>
         </div>
         <div className="flex w-full min-w-0 flex-col gap-3 sm:ml-auto sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
@@ -56,7 +58,7 @@ export function ExpenseTypeSection({
             onClick={() => setAddModalOpen(true)}
           >
             <Tag className="mr-1.5 h-4 w-4" />
-            Add Expense Type
+            {t("monthlyCategory_addExpenseType")}
           </Button>
         </div>
       </SectionHeader>

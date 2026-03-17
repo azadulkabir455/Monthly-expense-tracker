@@ -18,6 +18,7 @@ import { Label } from "@/blocks/elements/Label";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { getWishlistErrorMessage } from "@/lib/firebase/wishlist/errors";
 
 interface EditWishPriorityModalProps {
@@ -29,6 +30,7 @@ interface EditWishPriorityModalProps {
 
 export function EditWishPriorityModal({ priority, open, onClose, onUpdate }: EditWishPriorityModalProps) {
   const { theme } = useThemeContext();
+  const { t } = useLanguage();
   const isDark = theme === "dark";
   const [name, setName] = useState("");
   const [order, setOrder] = useState(1);
@@ -61,7 +63,7 @@ export function EditWishPriorityModal({ priority, open, onClose, onUpdate }: Edi
     setSubmitting(true);
     try {
       await onUpdate(priority.id, name.trim(), order);
-      toast.success("Priority type updated.");
+      toast.success(t("wishlist_priorityUpdated"));
       onClose();
     } catch (err) {
       toast.error(getWishlistErrorMessage(err, "update", "priority"));
@@ -88,8 +90,8 @@ export function EditWishPriorityModal({ priority, open, onClose, onUpdate }: Edi
       >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <div>
-            <CardTitle id="edit-priority-title">Edit Priority</CardTitle>
-            <CardDescription>Update the priority name and order.</CardDescription>
+            <CardTitle id="edit-priority-title">{t("wishlist_editPriority")}</CardTitle>
+            <CardDescription>{t("wishlist_editPriorityDescription")}</CardDescription>
           </div>
           <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close">
             <X className="h-5 w-5" />
@@ -108,7 +110,7 @@ export function EditWishPriorityModal({ priority, open, onClose, onUpdate }: Edi
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-priority-order">Order (1 = highest)</Label>
+              <Label htmlFor="edit-priority-order">{t("wishlist_priorityOrder")}</Label>
               <Input
                 id="edit-priority-order"
                 type="number"
@@ -121,10 +123,10 @@ export function EditWishPriorityModal({ priority, open, onClose, onUpdate }: Edi
           </CardContent>
           <CardFooter className="flex flex-col gap-2 sm:flex-row">
             <Button type="submit" className="w-full sm:w-auto" disabled={submitting}>
-              {submitting ? "Saving…" : "Save Changes"}
+              {submitting ? t("wishlist_saving") : t("wishlist_saveChanges")}
             </Button>
             <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={onClose}>
-              Cancel
+              {t("common_cancel")}
             </Button>
           </CardFooter>
         </form>

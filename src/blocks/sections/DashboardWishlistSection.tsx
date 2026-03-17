@@ -8,9 +8,10 @@ import {
   SectionTitle,
   SectionSubtitle,
 } from "@/blocks/elements/SectionCard";
+import { useLanguage } from "@/context/LanguageContext";
 import { buttonVariants } from "@/blocks/elements/Button";
 import { Gift, ChevronRight } from "lucide-react";
-import { DynamicIcon } from "lucide-react/dynamic";
+import { DynamicIcon, type IconName } from "lucide-react/dynamic";
 import { formatMoneyK } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useThemeContext } from "@/context/ThemeContext";
@@ -20,6 +21,7 @@ const WISHLIST_LIMIT = 5;
 
 export function DashboardWishlistSection() {
   const { theme } = useThemeContext();
+  const { t } = useLanguage();
   const isDark = theme === "dark";
   const { types: priorities } = useWishlistTypes();
   const priorityOrder = priorities.map((p) => ({ id: p.id, order: p.order }));
@@ -31,8 +33,8 @@ export function DashboardWishlistSection() {
     <SectionCard>
       <SectionHeader className="flex-row items-center justify-between gap-4 sm:flex-wrap">
         <div>
-          <SectionTitle>Wish List</SectionTitle>
-          <SectionSubtitle>Top {WISHLIST_LIMIT} items by priority</SectionSubtitle>
+          <SectionTitle>{t("wishlist_title")}</SectionTitle>
+          <SectionSubtitle>{t("wishlist_dashboardSubtitle", { limit: String(WISHLIST_LIMIT) })}</SectionSubtitle>
         </div>
         <Link
           href="/dashboard/wishlist"
@@ -71,7 +73,11 @@ export function DashboardWishlistSection() {
                 )}
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-500/20 text-violet-500">
-                  <DynamicIcon name={item.iconType} fallback={Gift} className="h-5 w-5" />
+                  <DynamicIcon
+                    name={(item.iconType as IconName) || "gift"}
+                    fallback={() => <Gift className="h-5 w-5" />}
+                    className="h-5 w-5"
+                  />
                 </span>
                 <div className="flex-1 min-w-0">
                   <span className={cn("font-medium block truncate", isDark ? "text-white" : "text-slate-800")}>
